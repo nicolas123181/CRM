@@ -1,0 +1,219 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import Navbar from '../../../components/Navbar.astro';
+import { supabase } from '../../../lib/supabase';
+
+const { id } = Astro.params;
+const profile = Astro.locals.profile;
+const isAdmin = profile.role === 'admin';
+
+let errorMessage = '';
+
+// Handle form submission
+if (Astro.request.method === 'POST') {
+  if (!isAdmin) {
+    return Astro.redirect('/products');
+  }
+
+  const formData = await Astro.request.formData();
+  const name = formData.get('name')?.toString();
+  const description = formData.get('description')?.toString();
+  const priceOnePayment = formData.get('priceOnePayment')?.toString();
+  const priceSubscription = formData.get('priceSubscription')?.toString();
+
+  if (name) {
+    const { error } = await supabase
+      .from('products')
+      .update({
+        name,
+        description: description || null,
+        price_one_payment: priceOnePayment ? parseFloat(priceOnePayment) : null,
+        price_subscription: priceSubscription ? parseFloat(priceSubscription) : null,
+      })
+      .eq('id', id);
+
+    if (error) {
+      errorMessage = error.message;
+    } else {
+      return Astro.redirect('/products');
+    }
+  } else {
+    errorMessage = 'El nombre del producto es obligatorio.';
+  }
+}
+
+// Fetch product data
+const { data: product, error } = await supabase
+  .from('products')
+  .select('*')
+  .eq('id', id)
+  .single();
+
+if (error || !product) {
+  return Astro.redirect('/products');
+}
+
+// Redirect if not admin
+if (!isAdmin) {
+  return Astro.redirect('/products');
+}
+---
+
+<Layout title="Editar Producto">
+  <Navbar />
+  
+  <main class="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div class="animate-fade-in">
+      <!-- Breadcrumb -->
+      <nav class="flex mb-8" aria-label="Breadcrumb">
+        <ol role="list" class="flex items-center space-x-4">
+          <li>
+            <div>
+              <a href="/products" class="text-gray-400 hover:text-gray-500">
+                <svg class="flex-shrink-0 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                </svg>
+                <span class="sr-only">Inicio</span>
+              </a>
+            </div>
+          </li>
+          <li>
+            <div class="flex items-center">
+              <svg class="flex-shrink-0 h-5 w-5 text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z" />
+              </svg>
+              <a href="/products" class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700">Productos</a>
+            </div>
+          </li>
+          <li>
+            <div class="flex items-center">
+              <svg class="flex-shrink-0 h-5 w-5 text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z" />
+              </svg>
+              <span class="ml-4 text-sm font-medium text-gray-500" aria-current="page">Editar</span>
+            </div>
+          </li>
+        </ol>
+      </nav>
+
+      <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden">
+        <div class="px-4 py-5 sm:px-6 bg-gray-50/50 border-b border-gray-100">
+          <h3 class="text-lg leading-6 font-medium text-gray-900">
+            Editar Producto
+          </h3>
+          <p class="mt-1 text-sm text-gray-500">
+            Modifica los detalles del producto.
+          </p>
+        </div>
+        
+        <form method="POST" class="p-6 space-y-6">
+          {errorMessage && (
+            <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm text-red-700">{errorMessage}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label for="name" class="block text-sm font-medium text-gray-700">
+              Nombre del Producto <span class="text-red-500">*</span>
+            </label>
+            <div class="mt-1">
+              <input
+                type="text"
+                name="name"
+                id="name"
+                required
+                value={product.name}
+                class="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md py-2.5 px-3 border"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label for="description" class="block text-sm font-medium text-gray-700">
+              Descripción
+            </label>
+            <div class="mt-1">
+              <textarea
+                id="description"
+                name="description"
+                rows="3"
+                class="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md py-2.5 px-3 border"
+              >{product.description || ''}</textarea>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div>
+              <label for="priceOnePayment" class="block text-sm font-medium text-gray-700">
+                Precio Pago Único
+              </label>
+              <div class="mt-1 relative rounded-md shadow-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span class="text-gray-500 sm:text-sm">$</span>
+                </div>
+                <input
+                  type="number"
+                  name="priceOnePayment"
+                  id="priceOnePayment"
+                  step="0.01"
+                  value={product.price_one_payment || ''}
+                  class="focus:ring-primary-500 focus:border-primary-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md py-2.5 border"
+                />
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <span class="text-gray-500 sm:text-sm">USD</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label for="priceSubscription" class="block text-sm font-medium text-gray-700">
+                Precio Suscripción (Mensual)
+              </label>
+              <div class="mt-1 relative rounded-md shadow-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span class="text-gray-500 sm:text-sm">$</span>
+                </div>
+                <input
+                  type="number"
+                  name="priceSubscription"
+                  id="priceSubscription"
+                  step="0.01"
+                  value={product.price_subscription || ''}
+                  class="focus:ring-primary-500 focus:border-primary-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md py-2.5 border"
+                />
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <span class="text-gray-500 sm:text-sm">/mes</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-5 border-t border-gray-100 flex justify-end space-x-3">
+            <a
+              href="/products"
+              class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            >
+              Cancelar
+            </a>
+            <button
+              type="submit"
+              class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all hover:-translate-y-0.5"
+            >
+              Actualizar Producto
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+</Layout>

@@ -1,0 +1,171 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getSession } from '../lib/auth';
+
+// --- DEFINICIÓN DE COLORES ---
+const PRIMARY_COLOR = '#102A43';      // Azul Marino
+const PRIMARY_LIGHT = '#20405A';      // Tono más claro para hover
+const PRIMARY_FOCUS = '#306085';      // Tono para anillos de foco
+const PRIMARY_BACKGROUND = '#E6EAF0'; // Tono muy claro para fondos de iconos
+// -----------------------------
+
+// Redirect if already logged in
+const { session } = await getSession();
+if (session) {
+  return Astro.redirect('/dashboard');
+}
+
+let errorMessage = '';
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const email = formData.get('email')?.toString();
+  const password = formData.get('password')?.toString();
+
+  if (email && password) {
+    const { signIn } = await import('../lib/auth');
+    const { data, error } = await signIn(email, password);
+
+    if (error) {
+      errorMessage = 'Credenciales incorrectas. Por favor, intenta de nuevo.';
+    } else if (data.session) {
+      return Astro.redirect('/dashboard');
+    }
+  } else {
+    errorMessage = 'Por favor, completa todos los campos.';
+  }
+}
+---
+
+<Layout title="Iniciar Sesión">
+  <div class="min-h-screen flex">
+    <div class="hidden lg:flex lg:w-1/2 relative bg-gray-900 overflow-hidden">
+      <div class={`absolute inset-0 bg-gradient-to-br from-[${PRIMARY_COLOR}] to-gray-900 opacity-70 z-10`}></div>
+      <img 
+        src="https://images.unsplash.com/photo-1551434678-e076c223a692?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=2850&q=80" 
+        alt="Office background" 
+        class="absolute inset-0 w-full h-full object-cover mix-blend-overlay"
+      />
+      <div class="relative z-20 flex flex-col justify-center px-12 text-white">
+        <div class="mb-6">
+          <img src="/logo.jpg" alt="Shaluqa CRM" class="w-20 h-20 rounded-2xl shadow-2xl shadow-black/50" />
+        </div>
+        <h1 class="text-5xl font-bold mb-6">Shaluqa CRM</h1>
+        <p class="text-xl text-gray-300 max-w-md">
+          Gestiona tus clientes, productos y licencias con la potencia y simplicidad que tu negocio merece.
+        </p>
+      </div>
+      <div class={`absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-[${PRIMARY_LIGHT}] opacity-20 blur-3xl z-10`}></div>
+      <div class="absolute top-24 right-24 w-64 h-64 rounded-full bg-secondary-500 opacity-20 blur-3xl z-10"></div>
+    </div>
+
+    <div class="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24 bg-white relative">
+      <div class="mx-auto w-full max-w-sm lg:w-96">
+        <div class="lg:hidden mb-8 text-center flex flex-col items-center">
+          <img src="/logo.jpg" alt="Shaluqa CRM" class="w-16 h-16 rounded-xl shadow-lg mb-4" />
+          <h1 class={`text-3xl font-bold text-[${PRIMARY_COLOR}]`}>Shaluqa CRM</h1>
+        </div>
+        
+        <div class="mb-8">
+          <h2 class="text-3xl font-extrabold text-gray-900">Bienvenido de nuevo</h2>
+          <p class="mt-2 text-sm text-gray-600">
+            Por favor, ingresa tus credenciales para continuar.
+          </p>
+        </div>
+
+        <form class="space-y-6" method="POST">
+          {errorMessage && (
+            <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-md animate-fade-in">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm text-red-700">{errorMessage}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div class="space-y-1">
+            <label for="email" class="block text-sm font-medium text-gray-700">
+              Correo Electrónico
+            </label>
+            <div class="mt-1 relative rounded-md shadow-sm">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                </svg>
+              </div>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                required
+                class={`focus:ring-[${PRIMARY_COLOR}] focus:border-[${PRIMARY_COLOR}] block w-full pl-10 sm:text-sm border-gray-300 rounded-lg py-3`}
+                placeholder="tu@empresa.com"
+              />
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <label for="password" class="block text-sm font-medium text-gray-700">
+              Contraseña
+            </label>
+            <div class="mt-1 relative rounded-md shadow-sm">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                required
+                class={`focus:ring-[${PRIMARY_COLOR}] focus:border-[${PRIMARY_COLOR}] block w-full pl-10 sm:text-sm border-gray-300 rounded-lg py-3`}
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              class={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[${PRIMARY_COLOR}] hover:bg-[${PRIMARY_LIGHT}] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[${PRIMARY_FOCUS}] transition-all duration-200 transform hover:-translate-y-0.5`}
+            >
+              Iniciar Sesión
+            </button>
+          </div>
+        </form>
+
+        <div class="mt-8">
+          <div class="relative">
+            <div class="absolute inset-0 flex items-center">
+              <div class="w-full border-t border-gray-300"></div>
+            </div>
+            <div class="relative flex justify-center text-sm">
+              <span class="px-2 bg-white text-gray-500">
+                ¿Nuevo en la plataforma?
+              </span>
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <a
+              href="/register"
+              class={`w-full flex justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[${PRIMARY_FOCUS}] transition-colors`}
+            >
+              Crear cuenta de Staff
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>

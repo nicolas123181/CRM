@@ -1,0 +1,316 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+import Navbar from "../../../components/Navbar.astro";
+import { supabase } from "../../../lib/supabase";
+
+const { id } = Astro.params;
+const profile = Astro.locals.profile;
+const isAdmin = profile.role === "admin";
+
+let errorMessage = "";
+
+// Fetch license data
+const { data: license, error: fetchError } = await supabase
+  .from("licenses")
+  .select("*")
+  .eq("id", id)
+  .single();
+
+if (fetchError || !license) {
+  return Astro.redirect("/licenses");
+}
+
+// Fetch clients and products for dropdowns (needed for display names even if disabled)
+const { data: clients } = await supabase
+  .from("clients")
+  .select("id, name, company")
+  .order("name");
+
+const { data: products } = await supabase
+  .from("products")
+  .select("id, name")
+  .order("name");
+
+// Handle update
+if (Astro.request.method === "POST") {
+  if (!isAdmin) {
+    return Astro.redirect("/licenses");
+  }
+
+  const formData = await Astro.request.formData();
+  const type = formData.get("type")?.toString();
+  const startDate = formData.get("startDate")?.toString();
+  const endDate = formData.get("endDate")?.toString();
+  const status = formData.get("status")?.toString();
+
+  if (type && startDate && status) {
+    const isExpired = endDate && new Date(endDate) < new Date();
+    const finalStatus = isExpired ? "inactiva" : status;
+
+    const { error } = await supabase
+      .from("licenses")
+      .update({
+        type,
+        start_date: startDate,
+        end_date: endDate || null,
+        status: finalStatus,
+      })
+      .eq("id", id);
+
+    if (error) {
+      errorMessage = error.message;
+    } else {
+      return Astro.redirect("/licenses");
+    }
+  } else {
+    errorMessage = "Por favor, completa todos los campos requeridos.";
+  }
+}
+
+// Redirect if not admin
+if (!isAdmin) {
+  return Astro.redirect("/licenses");
+}
+---
+
+<Layout title="Editar Licencia">
+  <Navbar />
+
+  <main class="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div class="animate-fade-in">
+      <!-- Breadcrumb -->
+      <nav class="flex mb-8" aria-label="Breadcrumb">
+        <ol role="list" class="flex items-center space-x-4">
+          <li>
+            <div>
+              <a href="/licenses" class="text-gray-400 hover:text-gray-500">
+                <svg
+                  class="flex-shrink-0 h-5 w-5"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+                  ></path>
+                </svg>
+                <span class="sr-only">Inicio</span>
+              </a>
+            </div>
+          </li>
+          <li>
+            <div class="flex items-center">
+              <svg
+                class="flex-shrink-0 h-5 w-5 text-gray-300"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                aria-hidden="true"
+              >
+                <path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z"></path>
+              </svg>
+              <a
+                href="/licenses"
+                class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700"
+                >Licencias</a
+              >
+            </div>
+          </li>
+          <li>
+            <div class="flex items-center">
+              <svg
+                class="flex-shrink-0 h-5 w-5 text-gray-300"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                aria-hidden="true"
+              >
+                <path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z"></path>
+              </svg>
+              <span
+                class="ml-4 text-sm font-medium text-gray-500"
+                aria-current="page">Editar</span
+              >
+            </div>
+          </li>
+        </ol>
+      </nav>
+
+      <div
+        class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden"
+      >
+        <div class="px-4 py-5 sm:px-6 bg-gray-50/50 border-b border-gray-100">
+          <h3 class="text-lg leading-6 font-medium text-gray-900">
+            Editar Licencia
+          </h3>
+          <p class="mt-1 text-sm text-gray-500">
+            Modifica los detalles de la licencia existente.
+          </p>
+        </div>
+
+        <form method="POST" class="p-6 space-y-6">
+          {
+            errorMessage && (
+              <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+                <div class="flex">
+                  <div class="flex-shrink-0">
+                    <svg
+                      class="h-5 w-5 text-red-400"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <p class="text-sm text-red-700">{errorMessage}</p>
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
+          <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <!-- Read-only Client Info -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700"
+                >Cliente</label
+              >
+              <div
+                class="mt-1 p-2.5 bg-gray-50 rounded-md border border-gray-200 text-gray-700 sm:text-sm"
+              >
+                {clients?.find((c) => c.id === license.client_id)?.name}
+              </div>
+              <p class="mt-1 text-xs text-gray-500">No editable</p>
+            </div>
+
+            <!-- Read-only Product Info -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700"
+                >Producto</label
+              >
+              <div
+                class="mt-1 p-2.5 bg-gray-50 rounded-md border border-gray-200 text-gray-700 sm:text-sm"
+              >
+                {products?.find((p) => p.id === license.product_id)?.name}
+              </div>
+              <p class="mt-1 text-xs text-gray-500">No editable</p>
+            </div>
+
+            <!-- License Type -->
+            <div class="sm:col-span-2">
+              <label for="type" class="block text-sm font-medium text-gray-700">
+                Tipo de Licencia <span class="text-red-500">*</span>
+              </label>
+              <select
+                id="type"
+                name="type"
+                required
+                class="mt-1 block w-full pl-3 pr-10 py-2.5 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md border"
+              >
+                <option
+                  value="licencia_unica"
+                  selected={license.type === "licencia_unica"}
+                  >Licencia Única (Pago único)</option
+                >
+                <option
+                  value="suscripcion"
+                  selected={license.type === "suscripcion"}
+                  >Suscripción (Recurrente)</option
+                >
+              </select>
+            </div>
+
+            <!-- Start Date -->
+            <div>
+              <label
+                for="startDate"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Fecha de Inicio <span class="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                name="startDate"
+                id="startDate"
+                required
+                value={license.start_date}
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2.5 border"
+              />
+            </div>
+
+            <!-- End Date -->
+            <div>
+              <label
+                for="endDate"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Fecha de Fin
+              </label>
+              <input
+                type="date"
+                name="endDate"
+                id="endDate"
+                value={license.end_date || ""}
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2.5 border"
+              />
+              <p class="mt-1 text-xs text-gray-500">
+                Dejar vacío para licencias perpetuas
+              </p>
+            </div>
+
+            <!-- Status -->
+            <div class="sm:col-span-2">
+              <label
+                for="status"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Estado <span class="text-red-500">*</span>
+              </label>
+              <select
+                id="status"
+                name="status"
+                required
+                class="mt-1 block w-full pl-3 pr-10 py-2.5 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md border"
+              >
+                <option value="activa" selected={license.status === "activa"}
+                  >Activa</option
+                >
+                <option
+                  value="inactiva"
+                  selected={license.status === "inactiva"}>Inactiva</option
+                >
+                <option
+                  value="pendiente_pago"
+                  selected={license.status === "pendiente_pago"}
+                  >Pendiente de Pago</option
+                >
+              </select>
+            </div>
+          </div>
+
+          <div class="pt-5 border-t border-gray-100 flex justify-end space-x-3">
+            <a
+              href="/licenses"
+              class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            >
+              Cancelar
+            </a>
+            <button
+              type="submit"
+              class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all hover:-translate-y-0.5"
+            >
+              Actualizar Licencia
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+</Layout>

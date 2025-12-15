@@ -1,0 +1,247 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+import { supabase } from '../../lib/supabase';
+import type { Client } from '../../types/database.types';
+
+const profile = Astro.locals.profile;
+const isAdmin = profile.role === 'admin';
+let actionError = '';
+
+// Get search filter from URL
+const url = new URL(Astro.request.url);
+const searchId = url.searchParams.get('id') || '';
+
+// Handle delete action
+if (Astro.request.method === 'POST' && isAdmin) {
+  const formData = await Astro.request.formData();
+  const action = formData.get('action');
+  const clientId = formData.get('clientId');
+
+  if (action === 'delete' && clientId) {
+    const { error: deleteError } = await supabase.from('clients').delete().eq('id', clientId);
+    
+    if (deleteError) {
+      console.error('Error deleting client:', deleteError);
+      if (deleteError.code === '23503') {
+        actionError = 'No se puede eliminar este cliente porque tiene licencias o registros asociados.';
+      } else {
+        actionError = `Error al eliminar el cliente: ${deleteError.message}`;
+      }
+    } else {
+      return Astro.redirect('/clients');
+    }
+  }
+}
+
+// Fetch all clients with optional ID filter
+let query = supabase
+  .from('clients')
+  .select('*')
+  .order('created_at', { ascending: false });
+
+let { data: clients, error } = await query;
+
+// Filter by ID in JavaScript (since Supabase doesn't support ILIKE on UUID)
+if (searchId && clients) {
+  clients = clients.filter(client => 
+    client.id.toLowerCase().startsWith(searchId.toLowerCase())
+  );
+}
+---
+
+<Layout title="Clientes">
+  <Navbar />
+  
+  <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div class="animate-fade-in">
+      <!-- Header -->
+      <div class="sm:flex sm:items-center sm:justify-between mb-8">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Clientes</h1>
+          <p class="mt-2 text-lg text-gray-600">
+            Gestiona tu base de clientes y sus datos de contacto.
+          </p>
+        </div>
+        {isAdmin && (
+          <div class="mt-4 sm:mt-0">
+            <a
+              href="/clients/new"
+              class="inline-flex items-center px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all hover:-translate-y-0.5"
+            >
+              <span class="mr-2 text-lg">➕</span>
+              Nuevo Cliente
+            </a>
+          </div>
+        )}
+      </div>
+
+      <!-- Search Filter -->
+      <div class="mb-6">
+        <form method="GET" class="max-w-xl">
+          <div class="flex gap-2">
+            <div class="flex-1">
+              <label for="id" class="block text-sm font-medium text-gray-700 mb-1">
+                Buscar por ID
+              </label>
+              <input
+                type="text"
+                name="id"
+                id="id"
+                value={searchId}
+                placeholder="Ingrese el ID del cliente"
+                class="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              />
+            </div>
+            <div class="flex items-end gap-2">
+              <button
+                type="submit"
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              >
+                Buscar
+              </button>
+              {searchId && (
+                <a
+                  href="/clients"
+                  class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                >
+                  Limpiar
+                </a>
+              )}
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Clients Grid -->
+      <div class="mt-8">
+        {actionError && (
+          <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-md animate-fade-in">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-red-700 font-medium">{actionError}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {error ? (
+          <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-red-700">Error al cargar clientes: {error.message}</p>
+              </div>
+            </div>
+          </div>
+        ) : clients && clients.length > 0 ? (
+          <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {(clients as Client[]).map((client, index) => (
+              <div 
+                class="bg-white rounded-xl shadow-sm ring-1 ring-gray-900/5 hover:shadow-md hover:ring-primary-500/30 transition-all duration-300 group animate-slide-up"
+                style={`animation-delay: ${index * 50}ms;`}
+              >
+                <div class="p-6">
+                  <div class="flex items-start justify-between">
+                    <div class="flex items-center space-x-3">
+                      <div class="h-12 w-12 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center text-lg font-bold text-primary-700 shadow-inner">
+                        {client.name.charAt(0)}
+                      </div>
+                      <div>
+                        <h3 class="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
+                          {client.name}
+                        </h3>
+                        {client.company && (
+                          <p class="text-sm text-gray-500 font-medium">
+                            {client.company}
+                          </p>
+                        )}
+                        <p class="text-xs text-gray-400 mt-0.5">
+                          ID: {client.id}
+                        </p>
+                      </div>
+                    </div>
+                    <div class="relative">
+                      <a 
+                        href={`/clients/${client.id}`}
+                        class="text-gray-400 hover:text-primary-600 transition-colors p-2 rounded-full hover:bg-primary-50 block"
+                        title="Ver detalles"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                        </svg>
+                      </a>
+                    </div>
+                  </div>
+
+                  <div class="mt-6 space-y-3">
+                    <div class="flex items-center text-sm text-gray-600">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2 text-gray-400">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                      </svg>
+                      <span class="truncate">{client.email}</span>
+                    </div>
+                    {client.phone && (
+                      <div class="flex items-center text-sm text-gray-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-2 text-gray-400">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                        </svg>
+                        {client.phone}
+                      </div>
+                    )}
+                  </div>
+
+                  <div class="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                    <span>Registrado: {new Date(client.created_at).toLocaleDateString('es-ES')}</span>
+                    
+                    {isAdmin && (
+                      <div class="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <a href={`/clients/edit/${client.id}`} class="text-blue-600 hover:text-blue-800 font-medium">Editar</a>
+                        <span class="text-gray-300">|</span>
+                        <form method="POST" class="inline" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este cliente?')">
+                          <input type="hidden" name="action" value="delete" />
+                          <input type="hidden" name="clientId" value={client.id} />
+                          <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Eliminar</button>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div class="text-center py-20 bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5">
+            <div class="mx-auto h-24 w-24 text-gray-300">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="w-full h-full">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+              </svg>
+            </div>
+            <h3 class="mt-4 text-lg font-medium text-gray-900">No hay clientes registrados</h3>
+            <p class="mt-1 text-sm text-gray-500">Comienza agregando tu primer cliente al sistema.</p>
+            {isAdmin && (
+              <div class="mt-6">
+                <a
+                  href="/clients/new"
+                  class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                >
+                  <span class="mr-2">➕</span>
+                  Nuevo Cliente
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  </main>
+</Layout>

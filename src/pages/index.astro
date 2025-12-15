@@ -1,0 +1,449 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { getSession } from "../lib/auth";
+
+// Redirect to dashboard if already logged in
+const { session } = await getSession();
+if (session) {
+  return Astro.redirect("/dashboard");
+}
+
+const plans = [
+  {
+    name: "Plan Básico",
+    description: "Visibilidad Digital Esencial.",
+    price: "€15",
+    period: "/mes",
+    features: [
+      "Aparición en el directorio digital.",
+      "Información completa del negocio (horarios, web).",
+      "Servicio de 'Cómo llegar' integrado.",
+      "Monitorización y respuesta a Reseñas.", // Corregido
+    ],
+    cta: "Empezar",
+    popular: false,
+    color: "bg-white",
+    url: "https://buy.stripe.com/test_cNi6oHdIc3io1DM5GZ4c800",
+  },
+  {
+    name: "Plan Premium",
+    description: "Marketing Proactivo y Captación.",
+    price: "€45",
+    period: "/mes",
+    features: [
+      "Todo lo del Plan Pro",
+      "Notificación a clientes por geolocalización (cercanía).", // Función estrella
+      "Envío de promociones push segmentadas.",
+    ],
+    cta: "Empezar",
+    popular: true,
+    color: "bg-white",
+    url: "https://buy.stripe.com/test_9B68wPaw06uAdmu6L34c802",
+  },
+  {
+    name: "Plan Pro",
+    description: "Presencia Premium y Prioritaria.",
+    price: "€20",
+    period: "/mes",
+    features: [
+      "Todo el Plan Básico",
+      "Ubicación destacada en el Mapa del directorio.", // Corregido
+      "Prioridad en las listas de búsqueda.",
+    ],
+    cta: "Empezar",
+    popular: false,
+    color: "bg-gray-900 text-white",
+    url: "https://buy.stripe.com/test_28EeVdgUo06cciq5GZ4c801",
+  }
+  
+];
+
+// Definición del color Azul Marino del logo para Tailwind (Hex: #102A43)
+const PRIMARY_COLOR = "#102A43";
+const PRIMARY_LIGHT = "#20405A"; // Tono más claro para hover
+const PRIMARY_BACKGROUND = "#E6EAF0"; // Tono muy claro para fondos de iconos
+---
+
+<Layout title="Bienvenido">
+  <nav
+    class="fixed w-full z-50 top-0 start-0 border-b border-white/20 bg-white/10 backdrop-blur-md"
+  >
+    <div
+      class="max-w-7xl mx-auto flex flex-wrap items-center justify-between mx-auto p-4"
+    >
+      <a href="/" class="flex items-center space-x-3 rtl:space-x-reverse">
+        <img
+          src="/logo.jpg"
+          alt="Shaluqa CRM"
+          class="w-10 h-10 rounded-xl shadow-lg shadow-primary-500/30"
+        />
+        <span
+          class="self-center text-2xl font-bold whitespace-nowrap text-gray-900"
+          >Shaluqa CRM</span
+        >
+      </a>
+    </div>
+  </nav>
+
+  <section class="relative pt-32 pb-20 lg:pt-40 lg:pb-28 overflow-hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div class="text-center max-w-3xl mx-auto">
+        <div
+          class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-50 border border-primary-100 text-primary-700 text-sm font-medium mb-6 animate-fade-in"
+        >
+          <span class="relative flex h-2 w-2">
+            <span
+              class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"
+            ></span>
+            <span
+              class="relative inline-flex rounded-full h-2 w-2 bg-primary-500"
+            ></span>
+          </span>
+          Nuevo: La Guía Turística para tu Negocio
+        </div>
+        <h1
+          class="text-5xl md:text-6xl font-extrabold tracking-tight text-gray-900 mb-6 animate-slide-up"
+        >
+          Conecta tu establecimiento con <span
+            class="text-transparent bg-clip-text bg-gradient-to-r from-[#102A43] to-[#20405A]"
+            >miles de turistas al instante</span
+          >
+        </h1>
+        <p
+          class="text-xl text-gray-600 mb-10 animate-slide-up"
+          style="animation-delay: 100ms;"
+        >
+          Digitaliza tu negocio en la guía turística definitiva. Muestra tus
+          horarios, enlaces, ubicación precisa y maneja tus reseñas
+          directamente. Un canal directo para captar a los visitantes que
+          recorren la ciudad con nuestra app.
+        </p>
+        <div
+          class="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up"
+          style="animation-delay: 200ms;"
+        >
+          <a
+            href="#pricing"
+            class={`inline-flex items-center justify-center px-8 py-4 text-base font-medium text-white bg-[#102A43] rounded-xl hover:bg-[${PRIMARY_LIGHT}] focus:ring-4 focus:ring-[#306085] shadow-xl shadow-[${PRIMARY_COLOR}]/30 transition-all hover:-translate-y-1`}
+          >
+            ¡Quiero aparecer en la App!
+            <svg
+              class="w-5 h-5 ml-2 -mr-1"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              xmlns="http://www.w3.org/2000/svg"
+              ><path
+                fill-rule="evenodd"
+                d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                clip-rule="evenodd"></path></svg
+            >
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full overflow-hidden -z-10 pointer-events-none"
+    >
+      <div
+        class="absolute top-[20%] left-[10%] w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"
+      >
+      </div>
+      <div
+        class="absolute top-[20%] right-[10%] w-72 h-72 bg-primary-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"
+      >
+      </div>
+      <div
+        class="absolute -bottom-8 left-[20%] w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"
+      >
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="py-20 bg-white/50 backdrop-blur-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <h2
+          class={`text-base font-semibold text-[${PRIMARY_COLOR}] tracking-wide uppercase`}
+        >
+          Características
+        </h2>
+        <p
+          class="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl"
+        >
+          Todo lo que necesitas para atraer al turista
+        </p>
+        <p class="mt-4 max-w-2xl text-xl text-gray-500 mx-auto">
+          Herramientas potentes y centralizadas para la visibilidad de tu
+          establecimiento.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+        <div
+          class="relative group bg-white p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:-translate-y-1"
+        >
+          <div
+            class={`absolute -inset-0.5 bg-gradient-to-r from-[${PRIMARY_COLOR}] to-purple-600 rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300 blur`}
+          >
+          </div>
+          <div class="relative bg-white p-6 rounded-xl h-full flex flex-col">
+            <div
+              class={`w-14 h-14 rounded-lg bg-[${PRIMARY_BACKGROUND}] flex items-center justify-center text-3xl mb-6 text-[${PRIMARY_COLOR}]`}
+            >
+              📍
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-3">
+              Visibilidad Geolocalizada y Rutas
+            </h3>
+            <p class="text-gray-500 leading-relaxed">
+              Sé encontrado al instante. Asegura que tu establecimiento aparezca
+              en las rutas personalizadas y audioguías de los turistas. Una
+              oportunidad directa de atraer clientes cercanos.
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="relative group bg-white p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:-translate-y-1"
+        >
+          <div
+            class={`absolute -inset-0.5 bg-gradient-to-r from-[${PRIMARY_COLOR}] to-purple-600 rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300 blur`}
+          >
+          </div>
+          <div class="relative bg-white p-6 rounded-xl h-full flex flex-col">
+            <div
+              class={`w-14 h-14 rounded-lg bg-[${PRIMARY_BACKGROUND}] flex items-center justify-center text-3xl mb-6 text-[${PRIMARY_COLOR}]`}
+            >
+              📲
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-3">
+              Promoción con Notificaciones Inteligentes
+            </h3>
+            <p class="text-gray-500 leading-relaxed">
+              Genera tráfico con la proximidad. Envía ofertas o mensajes
+              promocionales segmentados a los turistas cuando se encuentran
+              cerca de tu establecimiento.
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="relative group bg-white p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:-translate-y-1"
+        >
+          <div
+            class={`absolute -inset-0.5 bg-gradient-to-r from-[${PRIMARY_COLOR}] to-purple-600 rounded-2xl opacity-0 group-hover:opacity-100 transition duration-300 blur`}
+          >
+          </div>
+          <div class="relative bg-white p-6 rounded-xl h-full flex flex-col">
+            <div
+              class={`w-14 h-14 rounded-lg bg-[${PRIMARY_BACKGROUND}] flex items-center justify-center text-3xl mb-6 text-[${PRIMARY_COLOR}]`}
+            >
+              📊
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-3">
+              Control Total: Información y Reputación
+            </h3>
+            <p class="text-gray-500 leading-relaxed">
+              Gestiona tu imagen en un solo lugar. Mantén tus horarios y enlaces
+              externos siempre actualizados al minuto. Monitoriza las
+              valoraciones de los turistas y responde a las reseñas para mejorar
+              tu reputación.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing" class="py-24 relative overflow-hidden bg-gray-50">
+    <div
+      class="absolute inset-0 bg-white skew-y-3 transform origin-top-left -z-10"
+    >
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-20">
+        <h2
+          class={`text-base font-bold text-[${PRIMARY_COLOR}] tracking-wide uppercase`}
+        >
+          Precios Transparentes
+        </h2>
+        <p
+          class="mt-2 text-4xl leading-10 font-extrabold tracking-tight text-gray-900 sm:text-5xl"
+        >
+          Invierte en el crecimiento de tu negocio
+        </p>
+        <p class="mt-4 max-w-2xl text-xl text-gray-500 mx-auto">
+          Selecciona el plan perfecto para ti. Todos los planes incluyen acceso
+          inmediato y actualizaciones gratuitas.
+        </p>
+      </div>
+
+      <div
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start"
+      >
+        {
+          plans.map((plan) => (
+            <div
+              class={`relative flex flex-col rounded-2xl transition-all duration-300 ${
+                plan.popular
+                  ? `bg-white shadow-2xl ring-2 ring-[${PRIMARY_COLOR}] scale-105 z-10`
+                  : "bg-white shadow-lg border border-gray-100 hover:shadow-xl hover:-translate-y-1"
+              }`}
+            >
+              {plan.popular && (
+                <div class="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                  <span
+                    class={`bg-gradient-to-r from-[${PRIMARY_COLOR}] to-purple-600 text-white px-6 py-1.5 rounded-full text-sm font-bold shadow-lg tracking-wide uppercase`}
+                  >
+                    Más Popular
+                  </span>
+                </div>
+              )}
+
+              <div class="p-8 flex-1">
+                <h3 class="text-2xl font-bold mb-2 text-gray-900">
+                  {plan.name}
+                </h3>
+                <p class="text-sm mb-6 h-10 line-clamp-2 text-gray-500">
+                  {plan.description}
+                </p>
+
+                <div class="my-8">
+                  <div class="flex items-baseline">
+                    <span class="text-5xl font-extrabold tracking-tight text-gray-900">
+                      {plan.price}
+                    </span>
+                    <span class="ml-2 text-xl text-gray-500">
+                      {plan.period}
+                    </span>
+                  </div>
+                </div>
+
+                <ul class="space-y-4 mb-8">
+                  {plan.features.map((feature) => (
+                    <li class="flex items-start">
+                      <div class="flex-shrink-0">
+                        <svg
+                          class={`h-6 w-6 text-[${PRIMARY_COLOR}]`}
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      </div>
+                      <p class="ml-3 text-base text-gray-600">{feature}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div class="p-8 pt-0 mt-auto">
+                <a
+                  href={plan.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class={`w-full flex items-center justify-center px-6 py-4 border border-transparent text-base font-bold rounded-xl transition-all duration-200 transform hover:-translate-y-1 ${
+                    plan.popular
+                      ? `text-white bg-[${PRIMARY_COLOR}] hover:bg-[${PRIMARY_LIGHT}] shadow-lg shadow-[${PRIMARY_COLOR}]/30`
+                      : `text-[${PRIMARY_COLOR}] bg-[${PRIMARY_BACKGROUND}] hover:bg-[#D9DEE5] border-transparent`
+                  }`}
+                >
+                  {plan.cta}
+                </a>
+                <p class="mt-4 text-xs text-center text-gray-400">
+                  Garantía de devolución de 30 días
+                </p>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="py-20">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div
+        class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl shadow-2xl overflow-hidden relative"
+      >
+        <div class="p-12 text-center">
+          <h2 class="text-3xl font-extrabold text-white sm:text-4xl">
+            ¿Listo para llevar tu negocio al siguiente nivel?
+          </h2>
+          <p class="mt-4 text-xl text-gray-300">
+            Únete a la plataforma que está transformando la visibilidad
+            turística local.
+          </p>
+          <a
+            href="#pricing"
+            class={`mt-8 inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-xl text-[${PRIMARY_COLOR}] bg-white hover:bg-gray-100 shadow-xl transition-all hover:scale-[1.02]`}
+          >
+            Ver Planes y Empezar
+          </a>
+        </div>
+
+        <div
+          class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-primary-500 rounded-full mix-blend-overlay filter blur-3xl opacity-20"
+        >
+        </div>
+        <div
+          class="absolute bottom-0 left-0 -mb-10 -ml-10 w-64 h-64 bg-purple-500 rounded-full mix-blend-overlay filter blur-3xl opacity-20"
+        >
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="bg-white border-t border-gray-200 pt-12 pb-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col md:flex-row justify-between items-center">
+        <div class="flex items-center gap-2 mb-4 md:mb-0">
+          <img
+            src="/logo.jpg"
+            alt="Shaluqa CRM"
+            class="w-8 h-8 rounded-lg shadow-lg shadow-primary-500/30"
+          />
+          <span class="text-lg font-bold text-gray-900">Shaluqa CRM</span>
+        </div>
+        <div class="text-sm text-gray-500">
+          &copy; {new Date().getFullYear()} Shaluqa CRM. Todos los derechos reservados.
+        </div>
+      </div>
+    </div>
+  </footer>
+</Layout>
+
+<style>
+  @keyframes blob {
+    0% {
+      transform: translate(0px, 0px) scale(1);
+    }
+    33% {
+      transform: translate(30px, -50px) scale(1.1);
+    }
+    66% {
+      transform: translate(-20px, 20px) scale(0.9);
+    }
+    100% {
+      transform: translate(0px, 0px) scale(1);
+    }
+  }
+  .animate-blob {
+    animation: blob 7s infinite;
+  }
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
+</style>

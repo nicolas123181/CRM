@@ -1,0 +1,227 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+import { supabase } from '../../lib/supabase';
+import type { Product } from '../../types/database.types';
+
+const profile = Astro.locals.profile;
+const isAdmin = profile.role === 'admin';
+let actionError = '';
+
+// Get search filter from URL
+const url = new URL(Astro.request.url);
+const searchId = url.searchParams.get('id') || '';
+
+// Handle delete action
+if (Astro.request.method === 'POST' && isAdmin) {
+  const formData = await Astro.request.formData();
+  const action = formData.get('action');
+  const productId = formData.get('productId');
+
+  if (action === 'delete' && productId) {
+    const { error: deleteError } = await supabase.from('products').delete().eq('id', productId);
+    
+    if (deleteError) {
+      console.error('Error deleting product:', deleteError);
+      if (deleteError.code === '23503') {
+        actionError = 'No se puede eliminar este producto porque tiene licencias o registros asociados.';
+      } else {
+        actionError = `Error al eliminar el producto: ${deleteError.message}`;
+      }
+    } else {
+      return Astro.redirect('/products');
+    }
+  }
+}
+
+// Fetch all products with optional ID filter
+let query = supabase
+  .from('products')
+  .select('*')
+  .order('name');
+
+let { data: products, error } = await query;
+
+// Filter by ID in JavaScript (since Supabase doesn't support ILIKE on UUID)
+if (searchId && products) {
+  products = products.filter(product => 
+    product.id.toLowerCase().startsWith(searchId.toLowerCase())
+  );
+}
+---
+
+<Layout title="Productos">
+  <Navbar />
+  
+  <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div class="animate-fade-in">
+      <!-- Header -->
+      <div class="sm:flex sm:items-center sm:justify-between mb-8">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Productos</h1>
+          <p class="mt-2 text-lg text-gray-600">
+            Gestiona tu catálogo de productos y precios.
+          </p>
+        </div>
+        {isAdmin && (
+          <div class="mt-4 sm:mt-0">
+            <a
+              href="/products/new"
+              class="inline-flex items-center px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all hover:-translate-y-0.5"
+            >
+              <span class="mr-2 text-lg">➕</span>
+              Nuevo Producto
+            </a>
+          </div>
+        )}
+      </div>
+
+      <!-- Search Filter -->
+      <div class="mb-6">
+        <form method="GET" class="max-w-xl">
+          <div class="flex gap-2">
+            <div class="flex-1">
+              <label for="id" class="block text-sm font-medium text-gray-700 mb-1">
+                Buscar por ID
+              </label>
+              <input
+                type="text"
+                name="id"
+                id="id"
+                value={searchId}
+                placeholder="Ingrese el ID del producto"
+                class="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+              />
+            </div>
+            <div class="flex items-end gap-2">
+              <button
+                type="submit"
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              >
+                Buscar
+              </button>
+              {searchId && (
+                <a
+                  href="/products"
+                  class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                >
+                  Limpiar
+                </a>
+              )}
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Products Grid -->
+      <div class="mt-8">
+        {actionError && (
+          <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-md animate-fade-in">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-red-700 font-medium">{actionError}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {error ? (
+          <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-red-700">Error al cargar productos: {error.message}</p>
+              </div>
+            </div>
+          </div>
+        ) : products && products.length > 0 ? (
+          <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {(products as Product[]).map((product, index) => (
+              <div 
+                class="bg-white rounded-xl shadow-sm ring-1 ring-gray-900/5 flex flex-col hover:shadow-lg hover:ring-primary-500/30 transition-all duration-300 group animate-slide-up"
+                style={`animation-delay: ${index * 50}ms;`}
+              >
+                <div class="p-6 flex-1">
+                  <div class="flex items-center justify-between mb-4">
+                    <div class="h-10 w-10 rounded-lg bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center text-xl shadow-inner">
+                      📦
+                    </div>
+                    {isAdmin && (
+                      <div class="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <a href={`/products/edit/${product.id}`} class="text-gray-400 hover:text-primary-600 transition-colors">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                          </svg>
+                        </a>
+                        <form method="POST" class="inline" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este producto?')">
+                          <input type="hidden" name="action" value="delete" />
+                          <input type="hidden" name="productId" value={product.id} />
+                          <button type="submit" class="text-gray-400 hover:text-red-600 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                          </button>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <h3 class="text-lg font-bold text-gray-900 mb-2">{product.name}</h3>
+                  <p class="text-xs text-gray-400 mb-1">ID: {product.id}</p>
+                  <p class="text-sm text-gray-500 line-clamp-3 mb-4 h-10">
+                    {product.description || 'Sin descripción disponible.'}
+                  </p>
+                  
+                  <div class="space-y-3 pt-4 border-t border-gray-100">
+                    <div class="flex justify-between items-center">
+                      <span class="text-xs font-medium text-gray-500 uppercase">Pago Anual</span>
+                      <span class="text-sm font-bold text-gray-900 bg-gray-50 px-2 py-1 rounded">
+                        {product.price_one_payment ? `$${product.price_one_payment}` : '-'}
+                      </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                      <span class="text-xs font-medium text-gray-500 uppercase">Suscripción</span>
+                      <span class="text-sm font-bold text-primary-600 bg-primary-50 px-2 py-1 rounded">
+                        {product.price_subscription ? `$${product.price_subscription}/mes` : '-'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div class="text-center py-20 bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5">
+            <div class="mx-auto h-24 w-24 text-gray-300">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="w-full h-full">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+              </svg>
+            </div>
+            <h3 class="mt-4 text-lg font-medium text-gray-900">No hay productos disponibles</h3>
+            <p class="mt-1 text-sm text-gray-500">Comienza agregando productos a tu catálogo.</p>
+            {isAdmin && (
+              <div class="mt-6">
+                <a
+                  href="/products/new"
+                  class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                >
+                  <span class="mr-2">➕</span>
+                  Nuevo Producto
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  </main>
+</Layout>

@@ -1,0 +1,125 @@
+---
+const { pathname } = Astro.url;
+const profile = Astro.locals.profile;
+
+const navLinks = [
+  { name: "Dashboard", href: "/dashboard", icon: "📊" },
+  { name: "Clientes", href: "/clients", icon: "👥" },
+  { name: "Productos", href: "/products", icon: "📦" },
+  { name: "Licencias", href: "/licenses", icon: "📜" },
+];
+
+const isActive = (href: string) => {
+  if (href === "/dashboard") return pathname === href;
+  return pathname.startsWith(href);
+};
+---
+
+<nav
+  class="sticky top-0 z-50 w-full backdrop-blur-lg bg-white/70 border-b border-gray-200/50 supports-[backdrop-filter]:bg-white/60"
+>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between h-16">
+      <div class="flex">
+        <div class="flex-shrink-0 flex items-center">
+          <a href="/dashboard" class="flex items-center gap-2 group">
+            <img
+              src="/logo.jpg"
+              alt="Shaluqa CRM"
+              class="w-10 h-10 rounded-lg shadow-lg shadow-primary-500/30 group-hover:scale-105 transition-transform"
+            />
+            <span
+              class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600"
+            >
+              Shaluqa CRM
+            </span>
+          </a>
+        </div>
+        <div class="hidden sm:ml-8 sm:flex sm:space-x-1">
+          {
+            navLinks.map((link) => (
+              <a
+                href={link.href}
+                class={`inline-flex items-center px-3 pt-1 text-sm font-medium border-b-2 transition-all duration-200 ${
+                  isActive(link.href)
+                    ? "border-primary-500 text-primary-700"
+                    : "border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300"
+                }`}
+              >
+                <span class="mr-2 opacity-75">{link.icon}</span>
+                {link.name}
+              </a>
+            ))
+          }
+        </div>
+      </div>
+      <div class="flex items-center space-x-4">
+        <div
+          class="flex items-center gap-3 px-3 py-1.5 rounded-full bg-gray-50/50 border border-gray-200/50 backdrop-blur-sm"
+        >
+          <div class="flex flex-col items-end">
+            <span class="text-xs font-semibold text-gray-900 leading-none"
+              >{profile.full_name}</span
+            >
+            <span
+              class="text-[10px] text-gray-500 leading-none mt-1 uppercase tracking-wider"
+              >{profile.role}</span
+            >
+          </div>
+          <div
+            class={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm ${
+              profile.role === "admin"
+                ? "bg-gradient-to-br from-primary-500 to-primary-600"
+                : "bg-gradient-to-br from-secondary-500 to-secondary-600"
+            }`}
+          >
+            {profile.full_name.charAt(0).toUpperCase()}
+          </div>
+        </div>
+        <form action="/api/auth/logout" method="POST">
+          <button
+            type="submit"
+            class="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-full hover:bg-red-50"
+            title="Cerrar Sesión"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              class="w-5 h-5"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75"
+              ></path>
+            </svg>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile menu -->
+  <div class="sm:hidden border-t border-gray-200">
+    <div class="pt-2 pb-3 space-y-1">
+      {
+        navLinks.map((link) => (
+          <a
+            href={link.href}
+            class={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+              isActive(link.href)
+                ? "bg-primary-50 border-primary-500 text-primary-700"
+                : "border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+            }`}
+          >
+            <span class="mr-2">{link.icon}</span>
+            {link.name}
+          </a>
+        ))
+      }
+    </div>
+  </div>
+</nav>
