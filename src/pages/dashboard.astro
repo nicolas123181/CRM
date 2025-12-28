@@ -330,7 +330,7 @@ const { data: recentLicenses } = await supabase
               <h3 class="text-lg font-bold mb-2">Acciones Rápidas</h3>
               <p class="text-blue-100 text-sm mb-6">Gestiona tu negocio de forma eficiente.</p>
               
-              <div class="space-y-3">
+              <div class="space-y-3 max-h-80 overflow-y-auto pr-1">
                 <a
                   href="/clients/new"
                   class="flex items-center p-3 bg-white/10 rounded-lg hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10 group"
@@ -351,6 +351,34 @@ const { data: recentLicenses } = await supabase
                 >
                   <span class="bg-white/20 p-2 rounded-md mr-3 group-hover:scale-110 transition-transform">📜</span>
                   <span class="font-medium">Nueva Licencia</span>
+                </a>
+                <a
+                  href="/monumentos/new"
+                  class="flex items-center p-3 bg-white/10 rounded-lg hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10 group"
+                >
+                  <span class="bg-white/20 p-2 rounded-md mr-3 group-hover:scale-110 transition-transform">🏛️</span>
+                  <span class="font-medium">Nuevo Monumento</span>
+                </a>
+                <a
+                  href="/establecimientos/new"
+                  class="flex items-center p-3 bg-white/10 rounded-lg hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10 group"
+                >
+                  <span class="bg-white/20 p-2 rounded-md mr-3 group-hover:scale-110 transition-transform">🏪</span>
+                  <span class="font-medium">Nuevo Establecimiento</span>
+                </a>
+                <a
+                  href="/parques/new"
+                  class="flex items-center p-3 bg-white/10 rounded-lg hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10 group"
+                >
+                  <span class="bg-white/20 p-2 rounded-md mr-3 group-hover:scale-110 transition-transform">🌳</span>
+                  <span class="font-medium">Nuevo Parque</span>
+                </a>
+                <a
+                  href="/deportes/new"
+                  class="flex items-center p-3 bg-white/10 rounded-lg hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10 group"
+                >
+                  <span class="bg-white/20 p-2 rounded-md mr-3 group-hover:scale-110 transition-transform">⚽</span>
+                  <span class="font-medium">Nueva Instalación Deportiva</span>
                 </a>
               </div>
             </div>

@@ -23,6 +23,12 @@ const { data: products } = await supabase
   .select("id, name, price_one_payment, price_subscription")
   .order("name");
 
+// Fetch all establishments for client filtering
+const { data: establishments } = await supabase
+  .from("establecimientos")
+  .select("id, nombre, client_id")
+  .order("nombre");
+
 if (Astro.request.method === "POST") {
   if (!isAdmin) {
     return Astro.redirect("/licenses");
@@ -31,6 +37,7 @@ if (Astro.request.method === "POST") {
   const formData = await Astro.request.formData();
   const clientId = formData.get("clientId")?.toString();
   const productId = formData.get("productId")?.toString();
+  const establishmentId = formData.get("establishmentId")?.toString() || null;
   const type = formData.get("type")?.toString();
   const startDate = formData.get("startDate")?.toString();
   const endDate = formData.get("endDate")?.toString();
@@ -44,6 +51,7 @@ if (Astro.request.method === "POST") {
       {
         client_id: clientId,
         product_id: productId,
+        establishment_id: establishmentId ? parseInt(establishmentId) : null,
         type,
         start_date: startDate,
         end_date: endDate || null,
@@ -200,6 +208,27 @@ if (!isAdmin) {
               </select>
             </div>
 
+            <!-- Establishment Selection -->
+            <div class="sm:col-span-2">
+              <label
+                for="establishmentId"
+                class="block text-sm font-medium text-gray-700"
+              >
+                Establecimiento
+              </label>
+              <select
+                id="establishmentId"
+                name="establishmentId"
+                disabled
+                class="mt-1 block w-full pl-3 pr-10 py-2.5 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md border disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                <option value="">Seleccionar establecimiento...</option>
+              </select>
+              <p class="mt-1 text-xs text-gray-500">
+                Selecciona primero un cliente para ver sus establecimientos.
+              </p>
+            </div>
+
             <!-- Product Selection -->
             <div class="sm:col-span-2">
               <label
@@ -318,3 +347,54 @@ if (!isAdmin) {
     </div>
   </main>
 </Layout>
+
+<script define:vars={{ establishments }}>
+  document.addEventListener("DOMContentLoaded", () => {
+    const clientSelect = document.getElementById("clientId");
+    const establishmentSelect = document.getElementById("establishmentId");
+
+    // Store all establishments in memory
+    const allEstablishments = establishments || [];
+
+    function updateEstablishments() {
+      const selectedClientId = clientSelect.value;
+
+      // Clear current options except default
+      establishmentSelect.innerHTML =
+        '<option value="">Seleccionar establecimiento...</option>';
+
+      if (!selectedClientId) {
+        establishmentSelect.disabled = true;
+        return;
+      }
+
+      // Filter establishments by client
+      const clientEstablishments = allEstablishments.filter(
+        (est) => est.client_id === selectedClientId,
+      );
+
+      if (clientEstablishments.length > 0) {
+        establishmentSelect.disabled = false;
+        clientEstablishments.forEach((est) => {
+          const option = document.createElement("option");
+          option.value = est.id;
+          option.textContent = est.nombre;
+          establishmentSelect.appendChild(option);
+        });
+      } else {
+        establishmentSelect.disabled = true;
+        const option = document.createElement("option");
+        option.textContent = "No hay establecimientos para este cliente";
+        establishmentSelect.appendChild(option);
+      }
+    }
+
+    // Listen for changes
+    clientSelect.addEventListener("change", updateEstablishments);
+
+    // Initial check (if client is pre-selected)
+    if (clientSelect.value) {
+      updateEstablishments();
+    }
+  });
+</script>

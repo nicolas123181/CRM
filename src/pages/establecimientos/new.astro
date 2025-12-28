@@ -1,0 +1,868 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Navbar from "../../components/Navbar.astro";
+import { supabase } from "../../lib/supabase";
+
+let errorMessage = "";
+
+// Fetch categories and clients for selects
+const { data: categorias } = await supabase
+    .from("categorias")
+    .select("*")
+    .order("nombre");
+
+const { data: clients } = await supabase
+    .from("clients")
+    .select("id, name, company")
+    .order("name");
+
+if (Astro.request.method === "POST") {
+    const formData = await Astro.request.formData();
+    const nombre = formData.get("nombre")?.toString();
+    const descripcion = formData.get("descripcion")?.toString();
+    const latitud = parseFloat(formData.get("latitud")?.toString() || "0");
+    const longitud = parseFloat(formData.get("longitud")?.toString() || "0");
+    const imagen_url = formData.get("imagen_url")?.toString() || null;
+    const categoria_id = parseInt(
+        formData.get("categoria_id")?.toString() || "1",
+    );
+    const client_id = formData.get("client_id")?.toString() || null;
+    const recomendado = formData.get("recomendado") === "on" ? 1 : 0;
+    const horario = formData.get("horario")?.toString() || null;
+    const telefono = formData.get("telefono")?.toString() || null;
+    const reservas_url = formData.get("reservas_url")?.toString() || null;
+    const mensaje_promocional =
+        formData.get("mensaje_promocional")?.toString() || null;
+
+    // Get carousel images JSON
+    const imagenesCarruselRaw =
+        formData.get("imagenes_carrusel")?.toString() || "[]";
+    let imagenesCarrusel: string[] = [];
+    try {
+        imagenesCarrusel = JSON.parse(imagenesCarruselRaw);
+    } catch (e) {
+        imagenesCarrusel = [];
+    }
+
+    if (nombre && latitud && longitud) {
+        const { data, error } = await supabase
+            .from("establecimientos")
+            .insert([
+                {
+                    nombre,
+                    descripcion: descripcion || null,
+                    latitud,
+                    longitud,
+                    imagen_url,
+                    categoria_id,
+                    client_id: client_id || null,
+                    recomendado,
+                    horario,
+                    telefono: telefono ? parseInt(telefono) : null,
+                    reservas_url,
+                    mensaje_promocional,
+                },
+            ])
+            .select()
+            .single();
+
+        if (error) {
+            errorMessage = error.message;
+        } else {
+            // Insert carousel images into establecimiento_fotos
+            if (imagenesCarrusel.length > 0) {
+                const fotosToInsert = imagenesCarrusel.map((url, index) => ({
+                    establecimiento_id: data.id,
+                    imagen_url: url,
+                    orden: index + 1,
+                    es_principal: false,
+                    descripcion: null,
+                }));
+
+                const { error: fotosError } = await supabase
+                    .from("establecimiento_fotos")
+                    .insert(fotosToInsert);
+
+                if (fotosError) {
+                    console.error(
+                        "Error insertando fotos del carrusel:",
+                        fotosError.message,
+                    );
+                }
+            }
+
+            return Astro.redirect(`/establecimientos/${data.id}`);
+        }
+    } else {
+        errorMessage = "Por favor, completa todos los campos requeridos.";
+    }
+}
+---
+
+<Layout title="Nuevo Establecimiento">
+    <Navbar />
+
+    <main class="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div class="animate-fade-in">
+            <!-- Breadcrumb -->
+            <nav class="flex mb-8" aria-label="Breadcrumb">
+                <ol role="list" class="flex items-center space-x-4">
+                    <li>
+                        <a
+                            href="/establecimientos"
+                            class="text-gray-400 hover:text-gray-500"
+                        >
+                            <svg
+                                class="flex-shrink-0 h-5 w-5"
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                            >
+                                <path
+                                    d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+                                ></path>
+                            </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg
+                                class="flex-shrink-0 h-5 w-5 text-gray-300"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z"
+                                ></path>
+                            </svg>
+                            <a
+                                href="/establecimientos"
+                                class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700"
+                                >Establecimientos</a
+                            >
+                        </div>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg
+                                class="flex-shrink-0 h-5 w-5 text-gray-300"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z"
+                                ></path>
+                            </svg>
+                            <span class="ml-4 text-sm font-medium text-gray-500"
+                                >Nuevo</span
+                            >
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+
+            <div
+                class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden"
+            >
+                <div class="px-6 py-5 bg-gray-50/50 border-b border-gray-100">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">
+                        Registrar Nuevo Establecimiento
+                    </h3>
+                    <p class="mt-1 text-sm text-gray-500">
+                        Completa la información para dar de alta un nuevo
+                        establecimiento.
+                    </p>
+                </div>
+
+                <form method="POST" class="p-6">
+                    {
+                        errorMessage && (
+                            <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+                                <div class="flex">
+                                    <svg
+                                        class="h-5 w-5 text-red-400"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 20 20"
+                                        fill="currentColor"
+                                    >
+                                        <path
+                                            fill-rule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                            clip-rule="evenodd"
+                                        />
+                                    </svg>
+                                    <p class="ml-3 text-sm text-red-700">
+                                        {errorMessage}
+                                    </p>
+                                </div>
+                            </div>
+                        )
+                    }
+
+                    <!-- Sección: Información Básica -->
+                    <div class="mb-8">
+                        <h4
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                        >
+                            Información Básica
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="md:col-span-2">
+                                <label
+                                    for="nombre"
+                                    class="block text-sm font-medium text-gray-700 mb-1"
+                                >
+                                    Nombre <span class="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    name="nombre"
+                                    id="nombre"
+                                    required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                    placeholder="Nombre del establecimiento"
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    for="categoria_id"
+                                    class="block text-sm font-medium text-gray-700 mb-1"
+                                >
+                                    Categoría <span class="text-red-500">*</span
+                                    >
+                                </label>
+                                <select
+                                    name="categoria_id"
+                                    id="categoria_id"
+                                    required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                >
+                                    {
+                                        categorias?.map((cat) => (
+                                            <option value={cat.id}>
+                                                {cat.nombre}
+                                            </option>
+                                        ))
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <label
+                                for="descripcion"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >Descripción</label
+                            >
+                            <textarea
+                                name="descripcion"
+                                id="descripcion"
+                                rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                placeholder="Descripción del establecimiento"
+                            ></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Sección: Cliente -->
+                    <div class="mb-8">
+                        <h4
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                        >
+                            Cliente Asociado
+                        </h4>
+                        <select
+                            name="client_id"
+                            id="client_id"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                        >
+                            <option value="">-- Sin cliente asociado --</option>
+                            {
+                                clients?.map((client) => (
+                                    <option value={client.id}>
+                                        {client.name}{" "}
+                                        {client.company
+                                            ? `(${client.company})`
+                                            : ""}
+                                    </option>
+                                ))
+                            }
+                        </select>
+                    </div>
+
+                    <!-- Sección: Ubicación con Mapa -->
+                    <div class="mb-8">
+                        <h4
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                        >
+                            📍 Ubicación <span class="text-red-500">*</span>
+                        </h4>
+                        <p class="text-sm text-gray-600 mb-3">
+                            Haz clic en el mapa para seleccionar la ubicación
+                        </p>
+
+                        <!-- Mapa -->
+                        <div
+                            id="locationMap"
+                            class="h-64 rounded-lg border border-gray-300 z-0"
+                        >
+                        </div>
+
+                        <!-- Coordenadas seleccionadas -->
+                        <div class="mt-3 flex items-center gap-4">
+                            <div class="flex-1">
+                                <label class="block text-xs text-gray-500 mb-1"
+                                    >Latitud</label
+                                >
+                                <input
+                                    type="text"
+                                    name="latitud"
+                                    id="latitud"
+                                    required
+                                    readonly
+                                    class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm"
+                                    placeholder="Selecciona en el mapa"
+                                />
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-xs text-gray-500 mb-1"
+                                    >Longitud</label
+                                >
+                                <input
+                                    type="text"
+                                    name="longitud"
+                                    id="longitud"
+                                    required
+                                    readonly
+                                    class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm"
+                                    placeholder="Selecciona en el mapa"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección: Imagen Principal -->
+                    <div class="mb-8">
+                        <h4
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                        >
+                            📷 Imagen Principal
+                        </h4>
+                        <p class="text-sm text-gray-600 mb-3">
+                            Imagen de portada del establecimiento
+                        </p>
+
+                        <input
+                            type="hidden"
+                            name="imagen_url"
+                            id="imagen_url"
+                        />
+
+                        <div
+                            class="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-400 transition-colors"
+                        >
+                            <div
+                                id="mainImageDropZone"
+                                class="cursor-pointer text-center py-4"
+                            >
+                                <input
+                                    type="file"
+                                    id="mainImageFile"
+                                    accept="image/*"
+                                    class="hidden"
+                                />
+                                <span class="text-3xl block mb-2">📁</span>
+                                <p class="text-sm text-gray-600">
+                                    Haz clic o arrastra la imagen principal
+                                </p>
+                                <p class="text-xs text-gray-400">
+                                    Bucket: Establecimientos
+                                </p>
+                            </div>
+
+                            <div id="mainImagePreviewContainer" class="hidden">
+                                <img
+                                    id="mainImagePreview"
+                                    class="w-full h-40 object-cover rounded-lg"
+                                />
+                                <div
+                                    class="flex justify-between items-center mt-2"
+                                >
+                                    <p
+                                        id="mainImageFileName"
+                                        class="text-xs text-gray-600 truncate flex-1"
+                                    >
+                                        Imagen actual
+                                    </p>
+                                    <button
+                                        type="button"
+                                        id="clearMainImage"
+                                        class="text-xs text-red-600 hover:underline ml-2"
+                                        >✕ Cambiar</button
+                                    >
+                                </div>
+                                <div
+                                    id="mainImageUploadStatus"
+                                    class="hidden text-green-600 text-xs mt-1"
+                                >
+                                    ✓ Imagen subida
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección: Carrusel de Imágenes -->
+                    <div class="mb-8">
+                        <h4
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                        >
+                            🖼️ Carrusel de Imágenes (Opcional)
+                        </h4>
+                        <p class="text-sm text-gray-600 mb-3">
+                            Imágenes adicionales para el carrusel. Se creará un
+                            bucket automáticamente.
+                        </p>
+
+                        <input
+                            type="hidden"
+                            name="imagenes_carrusel"
+                            id="imagenes_carrusel"
+                            value="[]"
+                        />
+
+                        <div
+                            class="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 transition-colors"
+                        >
+                            <div
+                                id="carouselDropZone"
+                                class="cursor-pointer text-center py-4"
+                            >
+                                <input
+                                    type="file"
+                                    id="carouselFiles"
+                                    accept="image/*"
+                                    multiple
+                                    class="hidden"
+                                />
+                                <span class="text-3xl block mb-2">🎠</span>
+                                <p class="text-sm text-gray-600">
+                                    Haz clic o arrastra imágenes (máx. 5)
+                                </p>
+                                <p class="text-xs text-gray-400">
+                                    Bucket: Carrusel del establecimiento (se
+                                    crea automáticamente)
+                                </p>
+                            </div>
+
+                            <div
+                                id="carouselPreviewContainer"
+                                class="hidden grid grid-cols-2 md:grid-cols-3 gap-3 mt-4"
+                            >
+                            </div>
+
+                            <div
+                                id="carouselUploadProgress"
+                                class="hidden mt-3"
+                            >
+                                <div
+                                    class="flex items-center gap-2 text-sm text-purple-600"
+                                >
+                                    <svg
+                                        class="animate-spin h-4 w-4"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            class="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path
+                                            class="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                        ></path>
+                                    </svg>
+                                    <span id="carouselProgressText"
+                                        >Subiendo imágenes al carrusel...</span
+                                    >
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección: Contacto -->
+                    <div class="mb-8">
+                        <h4
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                        >
+                            📞 Contacto y Horario
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label
+                                    for="horario"
+                                    class="block text-sm font-medium text-gray-700 mb-1"
+                                    >Horario</label
+                                >
+                                <input
+                                    type="text"
+                                    name="horario"
+                                    id="horario"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                    placeholder="L-V: 9:00-21:00"
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    for="telefono"
+                                    class="block text-sm font-medium text-gray-700 mb-1"
+                                    >Teléfono</label
+                                >
+                                <input
+                                    type="tel"
+                                    name="telefono"
+                                    id="telefono"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                    placeholder="956123456"
+                                />
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <label
+                                for="reservas_url"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >URL de Reservas</label
+                            >
+                            <input
+                                type="url"
+                                name="reservas_url"
+                                id="reservas_url"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                placeholder="https://reservas.ejemplo.com"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Sección: Promoción -->
+                    <div class="mb-8">
+                        <h4
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                        >
+                            📢 Promoción
+                        </h4>
+                        <div>
+                            <label
+                                for="mensaje_promocional"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >Mensaje Promocional</label
+                            >
+                            <textarea
+                                name="mensaje_promocional"
+                                id="mensaje_promocional"
+                                rows="2"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                placeholder="¡Descuento del 10% para usuarios de la app!"
+                            ></textarea>
+                        </div>
+                        <div class="mt-4 flex items-center">
+                            <input
+                                type="checkbox"
+                                name="recomendado"
+                                id="recomendado"
+                                class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                            />
+                            <label
+                                for="recomendado"
+                                class="ml-2 block text-sm text-gray-700"
+                            >
+                                ⭐ Marcar como recomendado
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Botones -->
+                    <div
+                        class="pt-5 border-t border-gray-100 flex justify-end gap-3"
+                    >
+                        <a
+                            href="/establecimientos"
+                            class="px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                        >
+                            Cancelar
+                        </a>
+                        <button
+                            type="submit"
+                            class="px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 transition-all hover:-translate-y-0.5"
+                        >
+                            Guardar Establecimiento
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script is:inline>
+        document.addEventListener("DOMContentLoaded", function () {
+            // ================== MAPA DE UBICACIÓN ==================
+            const latInput = document.getElementById("latitud");
+            const lngInput = document.getElementById("longitud");
+
+            const defaultLat = 36.7783;
+            const defaultLng = -6.3448;
+
+            const map = L.map("locationMap").setView(
+                [defaultLat, defaultLng],
+                14,
+            );
+
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: "© OpenStreetMap contributors",
+            }).addTo(map);
+
+            let marker = null;
+
+            map.on("click", function (e) {
+                const lat = e.latlng.lat.toFixed(8);
+                const lng = e.latlng.lng.toFixed(8);
+
+                if (marker) {
+                    marker.setLatLng(e.latlng);
+                } else {
+                    marker = L.marker(e.latlng, { draggable: true }).addTo(map);
+                    marker.on("dragend", function (e) {
+                        const pos = marker.getLatLng();
+                        latInput.value = pos.lat.toFixed(8);
+                        lngInput.value = pos.lng.toFixed(8);
+                    });
+                }
+
+                latInput.value = lat;
+                lngInput.value = lng;
+            });
+
+            // ================== MAIN IMAGE UPLOAD ==================
+            const mainImageDropZone =
+                document.getElementById("mainImageDropZone");
+            const mainImageFile = document.getElementById("mainImageFile");
+            const mainImagePreviewContainer = document.getElementById(
+                "mainImagePreviewContainer",
+            );
+            const mainImagePreview =
+                document.getElementById("mainImagePreview");
+            const mainImageFileName =
+                document.getElementById("mainImageFileName");
+            const imagenUrlInput = document.getElementById("imagen_url");
+            const mainImageUploadStatus = document.getElementById(
+                "mainImageUploadStatus",
+            );
+            const clearMainImage = document.getElementById("clearMainImage");
+
+            mainImageDropZone.addEventListener("click", () =>
+                mainImageFile.click(),
+            );
+            mainImageDropZone.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                mainImageDropZone.classList.add("bg-primary-50");
+            });
+            mainImageDropZone.addEventListener("dragleave", () => {
+                mainImageDropZone.classList.remove("bg-primary-50");
+            });
+            mainImageDropZone.addEventListener("drop", (e) => {
+                e.preventDefault();
+                mainImageDropZone.classList.remove("bg-primary-50");
+                if (e.dataTransfer.files.length) {
+                    handleMainImageUpload(e.dataTransfer.files[0]);
+                }
+            });
+            mainImageFile.addEventListener("change", (e) => {
+                if (e.target.files.length) {
+                    handleMainImageUpload(e.target.files[0]);
+                }
+            });
+            clearMainImage.addEventListener("click", () => {
+                mainImagePreviewContainer.classList.add("hidden");
+                mainImageDropZone.classList.remove("hidden");
+                imagenUrlInput.value = "";
+                mainImageUploadStatus.classList.add("hidden");
+            });
+
+            async function handleMainImageUpload(file) {
+                if (!file.type.startsWith("image/")) {
+                    alert("Por favor selecciona una imagen");
+                    return;
+                }
+
+                // Preview
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    mainImagePreview.src = e.target.result;
+                    mainImageFileName.textContent = file.name;
+                    mainImagePreviewContainer.classList.remove("hidden");
+                    mainImageDropZone.classList.add("hidden");
+                };
+                reader.readAsDataURL(file);
+
+                // Upload
+                const formData = new FormData();
+                formData.append("file", file);
+                formData.append("bucket", "Establecimientos");
+
+                try {
+                    const response = await fetch("/api/upload", {
+                        method: "POST",
+                        body: formData,
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        imagenUrlInput.value = result.url;
+                        mainImageUploadStatus.classList.remove("hidden");
+                    } else {
+                        alert("Error: " + result.error);
+                    }
+                } catch (error) {
+                    alert("Error al subir: " + error.message);
+                }
+            }
+
+            // ================== CAROUSEL UPLOAD ==================
+            const carouselDropZone =
+                document.getElementById("carouselDropZone");
+            const carouselFiles = document.getElementById("carouselFiles");
+            const carouselPreviewContainer = document.getElementById(
+                "carouselPreviewContainer",
+            );
+            const imagenesCarruselInput =
+                document.getElementById("imagenes_carrusel");
+            const carouselUploadProgress = document.getElementById(
+                "carouselUploadProgress",
+            );
+            const carouselProgressText = document.getElementById(
+                "carouselProgressText",
+            );
+
+            let carouselImages = []; // Array for carousel image URLs
+
+            carouselDropZone.addEventListener("click", () =>
+                carouselFiles.click(),
+            );
+            carouselDropZone.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                carouselDropZone.classList.add("bg-purple-50");
+            });
+            carouselDropZone.addEventListener("dragleave", () => {
+                carouselDropZone.classList.remove("bg-purple-50");
+            });
+            carouselDropZone.addEventListener("drop", (e) => {
+                e.preventDefault();
+                carouselDropZone.classList.remove("bg-purple-50");
+                if (e.dataTransfer.files.length) {
+                    handleCarouselUpload(e.dataTransfer.files);
+                }
+            });
+            carouselFiles.addEventListener("change", (e) => {
+                if (e.target.files.length) {
+                    handleCarouselUpload(e.target.files);
+                }
+            });
+
+            async function handleCarouselUpload(files) {
+                // Verificar que el nombre del establecimiento esté definido
+                const nombreEstablecimiento = document
+                    .getElementById("nombre")
+                    .value.trim();
+                if (!nombreEstablecimiento) {
+                    alert(
+                        "Por favor, ingresa primero el nombre del establecimiento",
+                    );
+                    return;
+                }
+
+                const maxImages = 5;
+                const remainingSlots = maxImages - carouselImages.length;
+                const filesToUpload = Array.from(files).slice(
+                    0,
+                    remainingSlots,
+                );
+
+                if (filesToUpload.length === 0) {
+                    alert("Ya has subido el máximo de 5 imágenes al carrusel");
+                    return;
+                }
+
+                carouselUploadProgress.classList.remove("hidden");
+
+                // Use fixed bucket 'Carruseles' with establishment name as folder path
+                const folderPath = nombreEstablecimiento
+                    .replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s]/g, "")
+                    .replace(/\s+/g, "_");
+
+                for (let i = 0; i < filesToUpload.length; i++) {
+                    const file = filesToUpload[i];
+                    if (!file.type.startsWith("image/")) continue;
+
+                    carouselProgressText.textContent = `Subiendo imagen ${i + 1} de ${filesToUpload.length}...`;
+
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    formData.append("bucket", "Carruseles");
+                    formData.append("path", folderPath);
+
+                    try {
+                        const response = await fetch("/api/upload", {
+                            method: "POST",
+                            body: formData,
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            carouselImages.push(result.url);
+                            updateCarouselPreviews();
+                            updateCarouselInput();
+                        } else {
+                            alert("Error: " + result.error);
+                        }
+                    } catch (error) {
+                        alert("Error al subir: " + error.message);
+                    }
+                }
+
+                carouselUploadProgress.classList.add("hidden");
+            }
+
+            function updateCarouselPreviews() {
+                if (carouselImages.length === 0) {
+                    carouselPreviewContainer.classList.add("hidden");
+                    return;
+                }
+
+                carouselPreviewContainer.classList.remove("hidden");
+                carouselPreviewContainer.innerHTML = carouselImages
+                    .map(
+                        (url, index) => `
+                    <div class="relative group">
+                        <img src="${url}" class="w-full h-24 object-cover rounded-lg border" />
+                        <button type="button" onclick="removeCarouselImage(${index})" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                    </div>
+                `,
+                    )
+                    .join("");
+            }
+
+            function updateCarouselInput() {
+                imagenesCarruselInput.value = JSON.stringify(carouselImages);
+            }
+
+            window.removeCarouselImage = function (index) {
+                carouselImages.splice(index, 1);
+                updateCarouselPreviews();
+                updateCarouselInput();
+            };
+        });
+    </script>
+</Layout>

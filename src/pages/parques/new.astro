@@ -1,0 +1,407 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Navbar from "../../components/Navbar.astro";
+import { supabase } from "../../lib/supabase";
+
+let errorMessage = "";
+
+if (Astro.request.method === "POST") {
+    const formData = await Astro.request.formData();
+    const nombre = formData.get("nombre")?.toString();
+    const imagen_url = formData.get("imagen_url")?.toString() || null;
+    const latitud = formData.get("latitud")?.toString();
+    const longitud = formData.get("longitud")?.toString();
+
+    if (nombre) {
+        const { data, error } = await supabase
+            .from("parques")
+            .insert([
+                {
+                    nombre,
+                    imagen_url,
+                    latitud: latitud ? parseFloat(latitud) : null,
+                    longitud: longitud ? parseFloat(longitud) : null,
+                },
+            ])
+            .select()
+            .single();
+
+        if (error) {
+            errorMessage = error.message;
+        } else {
+            return Astro.redirect("/parques");
+        }
+    } else {
+        errorMessage = "Por favor, ingresa el nombre del parque.";
+    }
+}
+---
+
+<Layout title="Nuevo Parque">
+    <Navbar />
+
+    <main class="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div class="animate-fade-in">
+            <!-- Breadcrumb -->
+            <nav class="flex mb-8" aria-label="Breadcrumb">
+                <ol role="list" class="flex items-center space-x-4">
+                    <li>
+                        <a
+                            href="/parques"
+                            class="text-gray-400 hover:text-gray-500"
+                        >
+                            <svg
+                                class="h-5 w-5"
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                            >
+                                <path
+                                    d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+                                ></path>
+                            </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg
+                                class="h-5 w-5 text-gray-300"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z"
+                                ></path>
+                            </svg>
+                            <a
+                                href="/parques"
+                                class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700"
+                                >Parques</a
+                            >
+                        </div>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg
+                                class="h-5 w-5 text-gray-300"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z"
+                                ></path>
+                            </svg>
+                            <span class="ml-4 text-sm font-medium text-gray-500"
+                                >Nuevo</span
+                            >
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+
+            <div
+                class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden"
+            >
+                <div class="px-6 py-5 bg-green-50/50 border-b border-green-100">
+                    <div class="flex items-center gap-3">
+                        <span class="text-3xl">🌳</span>
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900">
+                                Nuevo Parque
+                            </h3>
+                            <p class="text-sm text-gray-500">
+                                Registra un nuevo parque o zona infantil.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <form method="POST" class="p-6">
+                    {
+                        errorMessage && (
+                            <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+                                <p class="text-sm text-red-700">
+                                    {errorMessage}
+                                </p>
+                            </div>
+                        )
+                    }
+
+                    <!-- Nombre -->
+                    <div class="mb-6">
+                        <label
+                            for="nombre"
+                            class="block text-sm font-medium text-gray-700 mb-1"
+                        >
+                            Nombre <span class="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            name="nombre"
+                            id="nombre"
+                            required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                            placeholder="Nombre del parque"
+                        />
+                    </div>
+
+                    <!-- Ubicación con Mapa -->
+                    <div class="mb-6">
+                        <h4
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                        >
+                            📍 Ubicación
+                        </h4>
+                        <p class="text-sm text-gray-600 mb-3">
+                            Haz clic en el mapa para seleccionar la ubicación
+                        </p>
+
+                        <!-- Mapa -->
+                        <div
+                            id="locationMap"
+                            class="h-64 rounded-lg border border-gray-300 z-0"
+                        >
+                        </div>
+
+                        <!-- Coordenadas seleccionadas -->
+                        <div class="mt-3 flex items-center gap-4">
+                            <div class="flex-1">
+                                <label class="block text-xs text-gray-500 mb-1"
+                                    >Latitud</label
+                                >
+                                <input
+                                    type="text"
+                                    name="latitud"
+                                    id="latitud"
+                                    readonly
+                                    class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm"
+                                    placeholder="Selecciona en el mapa"
+                                />
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-xs text-gray-500 mb-1"
+                                    >Longitud</label
+                                >
+                                <input
+                                    type="text"
+                                    name="longitud"
+                                    id="longitud"
+                                    readonly
+                                    class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm"
+                                    placeholder="Selecciona en el mapa"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Imagen Upload -->
+                    <div class="mb-6">
+                        <h4
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                        >
+                            📷 Imagen
+                        </h4>
+                        <div
+                            class="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 transition-colors"
+                        >
+                            <input
+                                type="hidden"
+                                name="imagen_url"
+                                id="imagen_url"
+                            />
+                            <div
+                                id="imageDropZone"
+                                class="cursor-pointer text-center py-4"
+                            >
+                                <input
+                                    type="file"
+                                    id="imageFile"
+                                    accept="image/*"
+                                    class="hidden"
+                                />
+                                <span class="text-3xl block mb-2">📁</span>
+                                <p class="text-sm text-gray-600">
+                                    Haz clic o arrastra una imagen
+                                </p>
+                                <p class="text-xs text-gray-400">
+                                    Bucket: parques
+                                </p>
+                            </div>
+                            <div id="imagePreviewContainer" class="hidden">
+                                <img
+                                    id="imagePreview"
+                                    class="w-full h-40 object-cover rounded-lg"
+                                />
+                                <div
+                                    class="flex justify-between items-center mt-2"
+                                >
+                                    <p
+                                        id="imageFileName"
+                                        class="text-xs text-gray-600 truncate flex-1"
+                                    >
+                                    </p>
+                                    <button
+                                        type="button"
+                                        id="clearImage"
+                                        class="text-xs text-red-600 hover:underline ml-2"
+                                        >✕ Quitar</button
+                                    >
+                                </div>
+                                <div
+                                    id="imageUploadStatus"
+                                    class="hidden text-green-600 text-xs mt-1"
+                                >
+                                    ✓ Subida correctamente
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botones -->
+                    <div
+                        class="pt-5 border-t border-gray-100 flex justify-end gap-3"
+                    >
+                        <a
+                            href="/parques"
+                            class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                        >
+                            Cancelar
+                        </a>
+                        <button
+                            type="submit"
+                            class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-green-600 hover:bg-green-700 transition-all hover:-translate-y-0.5"
+                        >
+                            Guardar Parque
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script is:inline>
+        document.addEventListener("DOMContentLoaded", function () {
+            // ================== MAPA DE UBICACIÓN ==================
+            const latInput = document.getElementById("latitud");
+            const lngInput = document.getElementById("longitud");
+
+            // Coordenadas de Sanlúcar de Barrameda
+            const defaultLat = 36.7783;
+            const defaultLng = -6.3448;
+
+            // Inicializar mapa
+            const map = L.map("locationMap").setView(
+                [defaultLat, defaultLng],
+                14,
+            );
+
+            // Añadir tiles de OpenStreetMap
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: "© OpenStreetMap contributors",
+            }).addTo(map);
+
+            // Marcador arrastrable
+            let marker = null;
+
+            // Click en el mapa para colocar/mover marcador
+            map.on("click", function (e) {
+                const lat = e.latlng.lat.toFixed(8);
+                const lng = e.latlng.lng.toFixed(8);
+
+                if (marker) {
+                    marker.setLatLng(e.latlng);
+                } else {
+                    marker = L.marker(e.latlng, { draggable: true }).addTo(map);
+
+                    // Evento al arrastrar marcador
+                    marker.on("dragend", function (e) {
+                        const pos = marker.getLatLng();
+                        latInput.value = pos.lat.toFixed(8);
+                        lngInput.value = pos.lng.toFixed(8);
+                    });
+                }
+
+                latInput.value = lat;
+                lngInput.value = lng;
+            });
+
+            // ================== SUBIDA DE IMAGEN ==================
+            const imageDropZone = document.getElementById("imageDropZone");
+            const imageFile = document.getElementById("imageFile");
+            const imagePreviewContainer = document.getElementById(
+                "imagePreviewContainer",
+            );
+            const imagePreview = document.getElementById("imagePreview");
+            const imageFileName = document.getElementById("imageFileName");
+            const imageUrlInput = document.getElementById("imagen_url");
+            const imageUploadStatus =
+                document.getElementById("imageUploadStatus");
+            const clearImage = document.getElementById("clearImage");
+
+            imageDropZone.addEventListener("click", () => imageFile.click());
+            imageDropZone.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                imageDropZone.classList.add("bg-green-50");
+            });
+            imageDropZone.addEventListener("dragleave", () => {
+                imageDropZone.classList.remove("bg-green-50");
+            });
+            imageDropZone.addEventListener("drop", (e) => {
+                e.preventDefault();
+                imageDropZone.classList.remove("bg-green-50");
+                if (e.dataTransfer.files.length) {
+                    handleImageUpload(e.dataTransfer.files[0]);
+                }
+            });
+            imageFile.addEventListener("change", (e) => {
+                if (e.target.files.length) {
+                    handleImageUpload(e.target.files[0]);
+                }
+            });
+            clearImage.addEventListener("click", () => {
+                imageUrlInput.value = "";
+                imagePreviewContainer.classList.add("hidden");
+                imageDropZone.classList.remove("hidden");
+                imageUploadStatus.classList.add("hidden");
+            });
+
+            async function handleImageUpload(file) {
+                if (!file.type.startsWith("image/")) {
+                    alert("Por favor selecciona una imagen");
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                    imageFileName.textContent = file.name;
+                    imagePreviewContainer.classList.remove("hidden");
+                    imageDropZone.classList.add("hidden");
+                };
+                reader.readAsDataURL(file);
+
+                const formData = new FormData();
+                formData.append("file", file);
+                formData.append("bucket", "parques");
+
+                try {
+                    const response = await fetch("/api/upload", {
+                        method: "POST",
+                        body: formData,
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        imageUrlInput.value = result.url;
+                        imageUploadStatus.classList.remove("hidden");
+                    } else {
+                        alert("Error: " + result.error);
+                    }
+                } catch (error) {
+                    alert("Error al subir: " + error.message);
+                }
+            }
+        });
+    </script>
+</Layout>

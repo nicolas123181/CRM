@@ -1,0 +1,264 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Navbar from "../../components/Navbar.astro";
+import { supabase } from "../../lib/supabase";
+import type { Deporte } from "../../types/database.types";
+
+let actionError = "";
+
+// Get search filter from URL
+const url = new URL(Astro.request.url);
+const searchName = url.searchParams.get("nombre") || "";
+
+// Handle delete action
+if (Astro.request.method === "POST") {
+    const formData = await Astro.request.formData();
+    const action = formData.get("action");
+    const deporteId = formData.get("deporteId");
+
+    if (action === "delete" && deporteId) {
+        const { error: deleteError } = await supabase
+            .from("deportes")
+            .delete()
+            .eq("id", deporteId);
+
+        if (deleteError) {
+            actionError = `Error al eliminar: ${deleteError.message}`;
+        } else {
+            return Astro.redirect("/deportes");
+        }
+    }
+}
+
+// Fetch all deportes
+let query = supabase
+    .from("deportes")
+    .select("*")
+    .order("id", { ascending: false });
+
+if (searchName) {
+    query = query.ilike("nombre", `%${searchName}%`);
+}
+
+let { data: deportes, error } = await query;
+---
+
+<Layout title="Deportes">
+    <Navbar />
+
+    <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div class="animate-fade-in">
+            <!-- Header -->
+            <div class="sm:flex sm:items-center sm:justify-between mb-8">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 tracking-tight">
+                        Deportes
+                    </h1>
+                    <p class="mt-2 text-lg text-gray-600">
+                        Gestiona las instalaciones deportivas.
+                    </p>
+                </div>
+                <div class="mt-4 sm:mt-0">
+                    <a
+                        href="/deportes/new"
+                        class="inline-flex items-center px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 transition-all hover:-translate-y-0.5"
+                    >
+                        <span class="mr-2 text-lg">➕</span>
+                        Nueva Instalación
+                    </a>
+                </div>
+            </div>
+
+            <!-- Search Filter -->
+            <div class="mb-6">
+                <form method="GET" class="max-w-xl">
+                    <div class="flex gap-2">
+                        <div class="flex-1">
+                            <label
+                                for="nombre"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >Buscar por nombre</label
+                            >
+                            <input
+                                type="text"
+                                name="nombre"
+                                id="nombre"
+                                value={searchName}
+                                placeholder="Nombre de la instalación"
+                                class="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+                            />
+                        </div>
+                        <div class="flex items-end gap-2">
+                            <button
+                                type="submit"
+                                class="px-4 py-2 text-sm font-medium rounded-lg text-white bg-orange-600 hover:bg-orange-700"
+                            >
+                                Buscar
+                            </button>
+                            {
+                                searchName && (
+                                    <a
+                                        href="/deportes"
+                                        class="px-4 py-2 text-sm font-medium rounded-lg text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                                    >
+                                        Limpiar
+                                    </a>
+                                )
+                            }
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Grid -->
+            <div class="mt-8">
+                {
+                    actionError && (
+                        <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+                            <p class="text-sm text-red-700 font-medium">
+                                {actionError}
+                            </p>
+                        </div>
+                    )
+                }
+
+                {
+                    error ? (
+                        <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+                            <p class="text-sm text-red-700">
+                                Error al cargar deportes: {error.message}
+                            </p>
+                        </div>
+                    ) : deportes && deportes.length > 0 ? (
+                        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                            {(deportes as Deporte[]).map((deporte, index) => (
+                                <div
+                                    class="bg-white rounded-xl shadow-sm ring-1 ring-gray-900/5 hover:shadow-md hover:ring-orange-500/30 transition-all duration-300 group animate-slide-up overflow-hidden"
+                                    style={`animation-delay: ${index * 50}ms;`}
+                                >
+                                    {/* Image */}
+                                    {deporte.imagen_url ? (
+                                        <div class="h-40 overflow-hidden">
+                                            <img
+                                                src={deporte.imagen_url}
+                                                alt={
+                                                    deporte.nombre ||
+                                                    "Instalación"
+                                                }
+                                                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div class="h-40 bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
+                                            <span class="text-6xl">⚽</span>
+                                        </div>
+                                    )}
+
+                                    <div class="p-5">
+                                        <h3 class="text-lg font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">
+                                            {deporte.nombre || "Sin nombre"}
+                                        </h3>
+                                        {deporte.descripcion && (
+                                            <p class="text-sm text-gray-500 mt-1 line-clamp-2">
+                                                {deporte.descripcion}
+                                            </p>
+                                        )}
+
+                                        {/* Location */}
+                                        {deporte.latitud &&
+                                            deporte.longitud && (
+                                                <div class="mt-3 flex items-center text-sm text-gray-600">
+                                                    <svg
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke-width="1.5"
+                                                        stroke="currentColor"
+                                                        class="w-4 h-4 mr-2 text-gray-400"
+                                                    >
+                                                        <path
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"
+                                                        />
+                                                        <path
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"
+                                                        />
+                                                    </svg>
+                                                    <a
+                                                        href={`https://www.google.com/maps?q=${deporte.latitud},${deporte.longitud}`}
+                                                        target="_blank"
+                                                        class="hover:text-orange-600 hover:underline"
+                                                    >
+                                                        Ver en Maps
+                                                    </a>
+                                                </div>
+                                            )}
+
+                                        <div class="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                                            <span>ID: {deporte.id}</span>
+                                            <div class="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <a
+                                                    href={`/deportes/edit/${deporte.id}`}
+                                                    class="text-blue-600 hover:text-blue-800 font-medium"
+                                                >
+                                                    Editar
+                                                </a>
+                                                <span class="text-gray-300">
+                                                    |
+                                                </span>
+                                                <form
+                                                    method="POST"
+                                                    class="inline"
+                                                    onsubmit="return confirm('¿Eliminar esta instalación?')"
+                                                >
+                                                    <input
+                                                        type="hidden"
+                                                        name="action"
+                                                        value="delete"
+                                                    />
+                                                    <input
+                                                        type="hidden"
+                                                        name="deporteId"
+                                                        value={deporte.id}
+                                                    />
+                                                    <button
+                                                        type="submit"
+                                                        class="text-red-600 hover:text-red-800 font-medium"
+                                                    >
+                                                        Eliminar
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div class="text-center py-20 bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5">
+                            <div class="text-6xl mb-4">⚽</div>
+                            <h3 class="text-lg font-medium text-gray-900">
+                                No hay instalaciones deportivas
+                            </h3>
+                            <p class="mt-1 text-sm text-gray-500">
+                                Comienza agregando tu primera instalación.
+                            </p>
+                            <div class="mt-6">
+                                <a
+                                    href="/deportes/new"
+                                    class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700"
+                                >
+                                    <span class="mr-2">➕</span> Nueva
+                                    Instalación
+                                </a>
+                            </div>
+                        </div>
+                    )
+                }
+            </div>
+        </div>
+    </main>
+</Layout>

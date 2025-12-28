@@ -1,10 +1,9 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import { getSession } from "../lib/auth";
 
 // Redirect to dashboard if already logged in
-const { session } = await getSession();
-if (session) {
+const authCookie = Astro.cookies.get("crm_auth");
+if (authCookie && authCookie.value === "authenticated") {
   return Astro.redirect("/dashboard");
 }
 
@@ -54,8 +53,7 @@ const plans = [
     popular: false,
     color: "bg-gray-900 text-white",
     url: "https://buy.stripe.com/test_28EeVdgUo06cciq5GZ4c801",
-  }
-  
+  },
 ];
 
 // Definición del color Azul Marino del logo para Tailwind (Hex: #102A43)

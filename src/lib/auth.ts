@@ -1,46 +1,66 @@
-import { supabase } from './supabase';
-import type { Profile } from '../types/database.types';
+// Simple local authentication without Supabase auth
+// Credentials: shaluqa / 123123
 
-export async function signUp(email: string, password: string, fullName: string) {
-    const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-            data: {
-                full_name: fullName,
-                role: 'staff' // Always assign staff role on registration
+const VALID_USER = 'shaluqa';
+const VALID_PASSWORD = '123123';
+
+// In-memory session state (for server-side)
+let isAuthenticated = false;
+
+export interface SimpleUser {
+    id: string;
+    name: string;
+}
+
+export interface SimpleProfile {
+    id: string;
+    full_name: string;
+    role: string;
+}
+
+export function signIn(username: string, password: string): { success: boolean; error?: string } {
+    if (username === VALID_USER && password === VALID_PASSWORD) {
+        isAuthenticated = true;
+        return { success: true };
+    }
+    return { success: false, error: 'Credenciales incorrectas' };
+}
+
+export function signOut(): void {
+    isAuthenticated = false;
+}
+
+export function getSession(): { session: { user: SimpleUser } | null } {
+    if (isAuthenticated) {
+        return {
+            session: {
+                user: {
+                    id: 'local-user',
+                    name: 'Shaluqa Admin'
+                }
             }
-        }
-    });
-
-    return { data, error };
+        };
+    }
+    return { session: null };
 }
 
-export async function signIn(email: string, password: string) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-    });
-
-    return { data, error };
+export function getProfile(_userId: string): { profile: SimpleProfile | null; error: null } {
+    return {
+        profile: {
+            id: 'local-user',
+            full_name: 'Shaluqa Admin',
+            role: 'admin'
+        },
+        error: null
+    };
 }
 
-export async function signOut() {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+// Check authentication status
+export function isLoggedIn(): boolean {
+    return isAuthenticated;
 }
 
-export async function getSession() {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    return { session, error };
-}
-
-export async function getProfile(userId: string): Promise<{ profile: Profile | null; error: any }> {
-    const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-    return { profile: data, error };
+// Set authentication status (for cookie-based persistence)
+export function setAuthenticated(value: boolean): void {
+    isAuthenticated = value;
 }

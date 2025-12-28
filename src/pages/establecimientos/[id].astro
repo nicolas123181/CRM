@@ -1,0 +1,1116 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Navbar from "../../components/Navbar.astro";
+import { supabase } from "../../lib/supabase";
+import type {
+    EstablecimientoWithDetails,
+    EstablecimientoFoto,
+} from "../../types/database.types";
+
+const { id } = Astro.params;
+
+// Fetch establecimiento with category and client details
+const { data: establecimiento, error } = await supabase
+    .from("establecimientos")
+    .select(
+        `
+    *,
+    categorias (nombre),
+    clients (id, name, email, company)
+  `,
+    )
+    .eq("id", id)
+    .single();
+
+if (error || !establecimiento) {
+    return Astro.redirect("/establecimientos");
+}
+
+const est = establecimiento as EstablecimientoWithDetails;
+
+// Fetch carousel photos
+const { data: fotos } = await supabase
+    .from("establecimiento_fotos")
+    .select("*")
+    .eq("establecimiento_id", id)
+    .order("orden", { ascending: true });
+
+const carouselPhotos = (fotos || []) as EstablecimientoFoto[];
+
+// Generate bucket name from establishment name (remove spaces and special chars)
+const bucketName = est.nombre.replace(/[^a-zA-Z0-9]/g, "");
+
+// Fetch clicks statistics
+const { data: clicks } = await supabase
+    .from("clicks_establecimientos")
+    .select("id, fecha, edad")
+    .eq("establecimiento_id", id);
+
+// Calculate statistics
+const totalClicks = clicks?.length || 0;
+const clicksWithAge = clicks?.filter((c) => c.edad !== null) || [];
+const avgAge =
+    clicksWithAge.length > 0
+        ? Math.round(
+              clicksWithAge.reduce((sum, c) => sum + (c.edad || 0), 0) /
+                  clicksWithAge.length,
+          )
+        : null;
+
+// Age distribution for chart
+const ageGroups = {
+    "18-24": 0,
+    "25-34": 0,
+    "35-44": 0,
+    "45-54": 0,
+    "55-64": 0,
+    "65+": 0,
+};
+
+clicksWithAge.forEach((c) => {
+    const age = c.edad || 0;
+    if (age >= 18 && age <= 24) ageGroups["18-24"]++;
+    else if (age >= 25 && age <= 34) ageGroups["25-34"]++;
+    else if (age >= 35 && age <= 44) ageGroups["35-44"]++;
+    else if (age >= 45 && age <= 54) ageGroups["45-54"]++;
+    else if (age >= 55 && age <= 64) ageGroups["55-64"]++;
+    else if (age >= 65) ageGroups["65+"]++;
+});
+
+// Clicks per week (last 12 weeks = 3 months)
+const weeks: { start: string; end: string; label: string }[] = [];
+for (let i = 11; i >= 0; i--) {
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() - i * 7);
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - 6);
+    weeks.push({
+        start: startDate.toISOString().split("T")[0],
+        end: endDate.toISOString().split("T")[0],
+        label: startDate.toLocaleDateString("es-ES", {
+            day: "2-digit",
+            month: "short",
+        }),
+    });
+}
+
+const clicksByWeek: number[] = weeks.map((week) => {
+    return (
+        clicks?.filter((c) => {
+            if (!c.fecha) return false;
+            const clickDate = c.fecha.split("T")[0];
+            return clickDate >= week.start && clickDate <= week.end;
+        }).length || 0
+    );
+});
+
+const chartLabels = weeks.map((w) => w.label);
+const chartData = clicksByWeek;
+
+// Category colors
+const categoryColors: Record<string, string> = {
+    restaurante: "bg-orange-100 text-orange-800 border-orange-200",
+    alojamiento: "bg-blue-100 text-blue-800 border-blue-200",
+    servicio: "bg-purple-100 text-purple-800 border-purple-200",
+};
+
+// Fetch all monuments to find nearby ones
+const { data: monumentos } = await supabase
+    .from("monumentos")
+    .select("id, nombre, imagen_url, latitud, longitud");
+
+// Haversine formula to calculate distance in meters
+function getDistanceMeters(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+): number {
+    const R = 6371000; // Earth's radius in meters
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+            Math.cos((lat2 * Math.PI) / 180) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+// Find monuments within 500m influence zone
+const INFLUENCE_RADIUS = 500; // meters
+const nearbyMonuments =
+    monumentos
+        ?.filter((mon) => {
+            const distance = getDistanceMeters(
+                est.latitud,
+                est.longitud,
+                mon.latitud,
+                mon.longitud,
+            );
+            return distance <= INFLUENCE_RADIUS;
+        })
+        .map((mon) => ({
+            ...mon,
+            distance: Math.round(
+                getDistanceMeters(
+                    est.latitud,
+                    est.longitud,
+                    mon.latitud,
+                    mon.longitud,
+                ),
+            ),
+        }))
+        .sort((a, b) => a.distance - b.distance) || [];
+
+// Get total potential visitors from nearby monuments
+const monumentIds = nearbyMonuments.map((m) => m.id);
+let potentialVisitors = 0;
+if (monumentIds.length > 0) {
+    const { data: monumentClicks } = await supabase
+        .from("clicks_monumentos")
+        .select("id")
+        .in("monumento_id", monumentIds);
+    potentialVisitors = monumentClicks?.length || 0;
+}
+---
+
+<Layout title={est.nombre}>
+    <Navbar />
+
+    <main class="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div class="animate-fade-in">
+            <!-- Breadcrumb -->
+            <nav class="flex mb-8" aria-label="Breadcrumb">
+                <ol role="list" class="flex items-center space-x-4">
+                    <li>
+                        <a
+                            href="/establecimientos"
+                            class="text-gray-400 hover:text-gray-500"
+                        >
+                            <svg
+                                class="flex-shrink-0 h-5 w-5"
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                            >
+                                <path
+                                    d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+                                ></path>
+                            </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg
+                                class="flex-shrink-0 h-5 w-5 text-gray-300"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z"
+                                ></path>
+                            </svg>
+                            <a
+                                href="/establecimientos"
+                                class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700"
+                                >Establecimientos</a
+                            >
+                        </div>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg
+                                class="flex-shrink-0 h-5 w-5 text-gray-300"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z"
+                                ></path>
+                            </svg>
+                            <span class="ml-4 text-sm font-medium text-gray-500"
+                                >{est.nombre}</span
+                            >
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+
+            <div class="grid gap-6 lg:grid-cols-3">
+                <!-- Main Content -->
+                <div class="lg:col-span-2">
+                    <div
+                        class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden"
+                    >
+                        {
+                            est.imagen_url && (
+                                <div class="h-64 overflow-hidden">
+                                    <img
+                                        src={est.imagen_url}
+                                        alt={est.nombre}
+                                        class="w-full h-full object-cover"
+                                    />
+                                </div>
+                            )
+                        }
+
+                        <div
+                            class="px-6 py-5 border-b border-gray-100 bg-gray-50/50"
+                        >
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span
+                                            class={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${categoryColors[est.categorias?.nombre?.toLowerCase()] || "bg-gray-100 text-gray-800 border-gray-200"}`}
+                                        >
+                                            {
+                                                est.categorias?.nombre ||
+                                                    "Sin categoría"
+                                            }
+                                        </span>
+                                        {
+                                            est.recomendado === 1 && (
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                                                    ⭐ Recomendado
+                                                </span>
+                                            )
+                                        }
+                                    </div>
+                                    <h1
+                                        class="text-2xl font-bold text-gray-900"
+                                    >
+                                        {est.nombre}
+                                    </h1>
+                                    {
+                                        est.descripcion && (
+                                            <p class="mt-2 text-gray-600">
+                                                {est.descripcion}
+                                            </p>
+                                        )
+                                    }
+                                </div>
+                                <a
+                                    href={`/establecimientos/edit/${est.id}`}
+                                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                                >
+                                    ✏️ Editar
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="px-6 py-6">
+                            <dl
+                                class="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2"
+                            >
+                                {
+                                    est.clients && (
+                                        <div class="sm:col-span-2 p-4 bg-primary-50 rounded-lg border border-primary-100">
+                                            <dt class="text-sm font-medium text-primary-700 flex items-center">
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke-width="1.5"
+                                                    stroke="currentColor"
+                                                    class="w-5 h-5 mr-2"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
+                                                    />
+                                                </svg>
+                                                Cliente Asociado
+                                            </dt>
+                                            <dd class="mt-2">
+                                                <a
+                                                    href={`/clients/${est.client_id}`}
+                                                    class="text-lg font-semibold text-primary-700 hover:text-primary-900 hover:underline"
+                                                >
+                                                    {est.clients.name}
+                                                </a>
+                                                {est.clients.company && (
+                                                    <p class="text-sm text-primary-600">
+                                                        {est.clients.company}
+                                                    </p>
+                                                )}
+                                                <p class="text-sm text-primary-600">
+                                                    {est.clients.email}
+                                                </p>
+                                            </dd>
+                                        </div>
+                                    )
+                                }
+
+                                <div>
+                                    <dt
+                                        class="text-sm font-medium text-gray-500 flex items-center"
+                                    >
+                                        📍 Ubicación
+                                    </dt>
+                                    <dd class="mt-1 text-sm text-gray-900">
+                                        {est.latitud.toFixed(6)}, {
+                                            est.longitud.toFixed(6)
+                                        }
+                                    </dd>
+                                    <dd class="mt-2">
+                                        <a
+                                            href={`https://www.google.com/maps?q=${est.latitud},${est.longitud}`}
+                                            target="_blank"
+                                            class="text-sm text-primary-600 hover:underline"
+                                            >Ver en Maps →</a
+                                        >
+                                    </dd>
+                                </div>
+
+                                {
+                                    est.horario && (
+                                        <div>
+                                            <dt class="text-sm font-medium text-gray-500">
+                                                🕐 Horario
+                                            </dt>
+                                            <dd class="mt-1 text-sm text-gray-900">
+                                                {est.horario}
+                                            </dd>
+                                        </div>
+                                    )
+                                }
+
+                                {
+                                    est.telefono && (
+                                        <div>
+                                            <dt class="text-sm font-medium text-gray-500">
+                                                📞 Teléfono
+                                            </dt>
+                                            <dd class="mt-1 text-sm text-gray-900">
+                                                {est.telefono}
+                                            </dd>
+                                        </div>
+                                    )
+                                }
+
+                                {
+                                    est.reservas_url && (
+                                        <div>
+                                            <dt class="text-sm font-medium text-gray-500">
+                                                🔗 Reservas
+                                            </dt>
+                                            <dd class="mt-1">
+                                                <a
+                                                    href={est.reservas_url}
+                                                    target="_blank"
+                                                    class="text-sm text-primary-600 hover:underline"
+                                                >
+                                                    {est.reservas_url}
+                                                </a>
+                                            </dd>
+                                        </div>
+                                    )
+                                }
+
+                                {
+                                    est.mensaje_promocional && (
+                                        <div class="sm:col-span-2 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                                            <dt class="text-sm font-medium text-yellow-700">
+                                                📢 Mensaje Promocional
+                                            </dt>
+                                            <dd class="mt-1 text-sm text-yellow-800">
+                                                {est.mensaje_promocional}
+                                            </dd>
+                                        </div>
+                                    )
+                                }
+
+                                <div>
+                                    <dt
+                                        class="text-sm font-medium text-gray-500"
+                                    >
+                                        Fecha de registro
+                                    </dt>
+                                    <dd class="mt-1 text-sm text-gray-900">
+                                        {
+                                            new Date(
+                                                est.created,
+                                            ).toLocaleDateString("es-ES", {
+                                                year: "numeric",
+                                                month: "long",
+                                                day: "numeric",
+                                            })
+                                        }
+                                    </dd>
+                                </div>
+
+                                <div>
+                                    <dt
+                                        class="text-sm font-medium text-gray-500"
+                                    >
+                                        ID
+                                    </dt>
+                                    <dd
+                                        class="mt-1 text-sm text-gray-900 font-mono"
+                                    >
+                                        {est.id}
+                                    </dd>
+                                </div>
+                            </dl>
+                        </div>
+
+                        <div
+                            class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center"
+                        >
+                            <a
+                                href="/establecimientos"
+                                class="text-sm text-gray-600 hover:text-gray-900"
+                                >← Volver a la lista</a
+                            >
+                            <form
+                                method="POST"
+                                action="/establecimientos"
+                                onsubmit="return confirm('¿Eliminar este establecimiento?')"
+                            >
+                                <input
+                                    type="hidden"
+                                    name="action"
+                                    value="delete"
+                                />
+                                <input
+                                    type="hidden"
+                                    name="establecimientoId"
+                                    value={est.id}
+                                />
+                                <button
+                                    type="submit"
+                                    class="text-sm text-red-600 hover:text-red-800 font-medium"
+                                    >🗑️ Eliminar</button
+                                >
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistics Sidebar -->
+                <div class="space-y-6">
+                    <!-- Market Study Card -->
+                    <div
+                        class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden"
+                    >
+                        <div
+                            class="px-5 py-4 bg-gradient-to-r from-indigo-500 to-purple-600"
+                        >
+                            <h3
+                                class="text-lg font-semibold text-white flex items-center"
+                            >
+                                📊 Estudio de Mercado
+                            </h3>
+                        </div>
+                        <div class="p-5">
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div
+                                    class="text-center p-4 bg-indigo-50 rounded-lg"
+                                >
+                                    <div
+                                        class="text-3xl font-bold text-indigo-600"
+                                    >
+                                        {totalClicks}
+                                    </div>
+                                    <div
+                                        class="text-xs text-indigo-700 font-medium mt-1"
+                                    >
+                                        Total Clicks
+                                    </div>
+                                </div>
+                                <div
+                                    class="text-center p-4 bg-purple-50 rounded-lg"
+                                >
+                                    <div
+                                        class="text-3xl font-bold text-purple-600"
+                                    >
+                                        {avgAge || "N/A"}
+                                    </div>
+                                    <div
+                                        class="text-xs text-purple-700 font-medium mt-1"
+                                    >
+                                        Edad Media
+                                    </div>
+                                </div>
+                            </div>
+
+                            {
+                                totalClicks > 0 ? (
+                                    <div>
+                                        <h4 class="text-sm font-semibold text-gray-700 mb-3">
+                                            Distribución por Edad
+                                        </h4>
+                                        <div class="space-y-2">
+                                            {Object.entries(ageGroups).map(
+                                                ([range, count]) => (
+                                                    <div class="flex items-center">
+                                                        <span class="text-xs text-gray-600 w-16">
+                                                            {range}
+                                                        </span>
+                                                        <div class="flex-1 mx-2">
+                                                            <div class="h-4 bg-gray-100 rounded-full overflow-hidden">
+                                                                <div
+                                                                    class="h-full bg-gradient-to-r from-indigo-400 to-purple-500 rounded-full transition-all duration-500"
+                                                                    style={`width: ${clicksWithAge.length > 0 ? (count / clicksWithAge.length) * 100 : 0}%`}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <span class="text-xs font-medium text-gray-700 w-8 text-right">
+                                                            {count}
+                                                        </span>
+                                                    </div>
+                                                ),
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div class="text-center py-4 text-gray-500 text-sm">
+                                        <span class="text-2xl block mb-2">
+                                            📭
+                                        </span>
+                                        Aún no hay datos de clicks
+                                    </div>
+                                )
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Clicks Chart Card -->
+                    <div
+                        class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden"
+                    >
+                        <div
+                            class="px-5 py-4 bg-gradient-to-r from-emerald-500 to-teal-600"
+                        >
+                            <h3
+                                class="text-lg font-semibold text-white flex items-center"
+                            >
+                                📈 Clicks (3 meses)
+                            </h3>
+                        </div>
+                        <div class="p-5">
+                            {
+                                totalClicks > 0 ? (
+                                    <div class="relative h-48">
+                                        <canvas id="clicksChart" />
+                                    </div>
+                                ) : (
+                                    <div class="text-center py-8 text-gray-500 text-sm">
+                                        <span class="text-2xl block mb-2">
+                                            📊
+                                        </span>
+                                        El gráfico aparecerá cuando haya clicks
+                                    </div>
+                                )
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Info Card -->
+                    <div
+                        class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100"
+                    >
+                        <h4 class="text-sm font-semibold text-blue-800 mb-2">
+                            💡 Información
+                        </h4>
+                        <p class="text-xs text-blue-700">
+                            Estos datos provienen de los clicks registrados en
+                            la app móvil. Puedes compartir estas estadísticas
+                            con el cliente para demostrar el impacto de su
+                            establecimiento.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            
+            <!-- Zona de Influencia Turística Section -->
+            <div
+                class="mt-8 bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden"
+            >
+                <div
+                    class="px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-600"
+                >
+                    <h2 class="text-xl font-bold text-white">
+                        🏛️ Zona de Influencia Turística
+                    </h2>
+                    <p class="text-amber-100 text-sm mt-1">
+                        Monumentos a menos de 500m de distancia
+                    </p>
+                </div>
+                <div class="p-6">
+                    {
+                        nearbyMonuments.length > 0 ? (
+                            <div>
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                                    <div class="text-center p-4 bg-amber-50 rounded-lg">
+                                        <div class="text-3xl font-bold text-amber-600">
+                                            {nearbyMonuments.length}
+                                        </div>
+                                        <div class="text-xs text-amber-700 font-medium mt-1">
+                                            Monumentos cercanos
+                                        </div>
+                                    </div>
+                                    <div class="text-center p-4 bg-orange-50 rounded-lg">
+                                        <div class="text-3xl font-bold text-orange-600">
+                                            {potentialVisitors.toLocaleString()}
+                                        </div>
+                                        <div class="text-xs text-orange-700 font-medium mt-1">
+                                            Visitantes potenciales
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                    {nearbyMonuments.map((mon) => (
+                                        <a
+                                            href={`/monumentos/${mon.id}`}
+                                            class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-amber-50 transition-colors group border border-gray-100"
+                                        >
+                                            {mon.imagen_url ? (
+                                                <img
+                                                    src={mon.imagen_url}
+                                                    alt={mon.nombre}
+                                                    class="w-12 h-12 rounded-lg object-cover"
+                                                />
+                                            ) : (
+                                                <div class="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center text-xl">
+                                                    🏛️
+                                                </div>
+                                            )}
+                                            <div class="flex-1 min-w-0">
+                                                <p class="text-sm font-medium text-gray-900 truncate group-hover:text-amber-600">
+                                                    {mon.nombre}
+                                                </p>
+                                                <p class="text-xs text-gray-500">
+                                                    a {mon.distance}m
+                                                </p>
+                                            </div>
+                                            <span class="text-gray-400 group-hover:text-amber-500">
+                                                →
+                                            </span>
+                                        </a>
+                                    ))}
+                                </div>
+
+                                <div class="mt-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border border-amber-100">
+                                    <p class="text-sm text-amber-800">
+                                        <strong>💰 Valor añadido:</strong> Este
+                                        establecimiento se beneficia de la
+                                        afluencia turística de{" "}
+                                        {nearbyMonuments.length} monumento
+                                        {nearbyMonuments.length > 1
+                                            ? "s"
+                                            : ""}{" "}
+                                        cercano
+                                        {nearbyMonuments.length > 1 ? "s" : ""},
+                                        con un potencial de{" "}
+                                        <strong>
+                                            {potentialVisitors.toLocaleString()}{" "}
+                                            visitantes
+                                        </strong>
+                                        .
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div class="text-center py-8 text-gray-500">
+                                <span class="text-5xl block mb-4">📍</span>
+                                <h3 class="text-lg font-medium text-gray-900">
+                                    Sin monumentos cercanos
+                                </h3>
+                                <p class="mt-1 text-sm">
+                                    No hay monumentos en un radio de 500m
+                                </p>
+                                <p class="text-xs text-gray-400 mt-1">
+                                    Este establecimiento está fuera de zonas
+                                    turísticas principales
+                                </p>
+                            </div>
+                        )
+                    }
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Upload Modal -->
+    <div
+        id="uploadModal"
+        class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4"
+    >
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full">
+            <div class="px-6 py-4 border-b flex justify-between items-center">
+                <h3 class="text-lg font-semibold">Subir foto al carrusel</h3>
+                <button
+                    id="closeModal"
+                    class="text-gray-400 hover:text-gray-600 text-2xl"
+                    >&times;</button
+                >
+            </div>
+            <form id="uploadForm" class="p-6">
+                <input type="hidden" name="establecimiento_id" value={est.id} />
+                <input type="hidden" name="folder_name" value={bucketName} />
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2"
+                        >Seleccionar imagen</label
+                    >
+                    <div
+                        id="dropZone"
+                        class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-pink-400 transition-colors cursor-pointer"
+                    >
+                        <input
+                            type="file"
+                            name="file"
+                            id="fileInput"
+                            accept="image/*"
+                            class="hidden"
+                        />
+                        <span class="text-4xl block mb-2">📁</span>
+                        <p class="text-sm text-gray-600">
+                            Arrastra una imagen o haz clic para seleccionar
+                        </p>
+                        <p class="text-xs text-gray-400 mt-1">Máximo 50MB</p>
+                    </div>
+                    <div id="previewContainer" class="mt-4 hidden">
+                        <img
+                            id="imagePreview"
+                            class="w-full h-40 object-cover rounded-lg"
+                        />
+                        <p
+                            id="fileName"
+                            class="text-sm text-gray-600 mt-2 truncate"
+                        >
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2"
+                        >Descripción (opcional)</label
+                    >
+                    <input
+                        type="text"
+                        name="descripcion"
+                        class="w-full rounded-lg border-gray-300 shadow-sm focus:ring-pink-500 focus:border-pink-500"
+                        placeholder="Ej: Fachada exterior"
+                    />
+                </div>
+
+                <div class="mb-6">
+                    <label class="flex items-center">
+                        <input
+                            type="checkbox"
+                            name="es_principal"
+                            value="true"
+                            class="rounded text-pink-600 focus:ring-pink-500"
+                        />
+                        <span class="ml-2 text-sm text-gray-700"
+                            >Marcar como foto principal</span
+                        >
+                    </label>
+                </div>
+
+                <div id="uploadProgress" class="hidden mb-4">
+                    <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                            id="progressBar"
+                            class="h-full bg-pink-500 transition-all duration-300"
+                            style="width: 0%"
+                        >
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-2 text-center">
+                        Subiendo...
+                    </p>
+                </div>
+
+                <div class="flex gap-3">
+                    <button
+                        type="button"
+                        id="cancelUpload"
+                        class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        type="submit"
+                        id="submitUpload"
+                        class="flex-1 px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg font-medium disabled:opacity-50"
+                        disabled
+                    >
+                        Subir foto
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Chart.js CDN -->
+    <script is:inline src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script is:inline define:vars={{ chartLabels, chartData, totalClicks }}>
+        document.addEventListener("DOMContentLoaded", function () {
+            if (totalClicks > 0 && typeof Chart !== "undefined") {
+                const ctx = document.getElementById("clicksChart");
+                if (ctx) {
+                    new Chart(ctx, {
+                        type: "line",
+                        data: {
+                            labels: chartLabels,
+                            datasets: [
+                                {
+                                    label: "Clicks",
+                                    data: chartData,
+                                    fill: true,
+                                    backgroundColor: "rgba(16, 185, 129, 0.1)",
+                                    borderColor: "rgba(16, 185, 129, 1)",
+                                    borderWidth: 2,
+                                    tension: 0.4,
+                                    pointBackgroundColor:
+                                        "rgba(16, 185, 129, 1)",
+                                    pointBorderColor: "#fff",
+                                    pointBorderWidth: 2,
+                                    pointRadius: 3,
+                                    pointHoverRadius: 5,
+                                },
+                            ],
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: "rgba(0, 0, 0, 0.8)",
+                                    padding: 12,
+                                    titleFont: { size: 14 },
+                                    bodyFont: { size: 13 },
+                                },
+                            },
+                            scales: {
+                                x: {
+                                    display: true,
+                                    grid: { display: false },
+                                    ticks: {
+                                        maxTicksLimit: 7,
+                                        font: { size: 10 },
+                                        color: "#6b7280",
+                                    },
+                                },
+                                y: {
+                                    display: true,
+                                    beginAtZero: true,
+                                    grid: { color: "rgba(0,0,0,0.05)" },
+                                    ticks: {
+                                        stepSize: 1,
+                                        font: { size: 10 },
+                                        color: "#6b7280",
+                                    },
+                                },
+                            },
+                        },
+                    });
+                }
+            }
+        });
+    </script>
+
+    <!-- Carousel Upload Script -->
+    <script is:inline>
+        document.addEventListener("DOMContentLoaded", function () {
+            const modal = document.getElementById("uploadModal");
+            const openBtn = document.getElementById("openUploadModal");
+            const openBtnEmpty = document.getElementById(
+                "openUploadModalEmpty",
+            );
+            const closeBtn = document.getElementById("closeModal");
+            const cancelBtn = document.getElementById("cancelUpload");
+            const form = document.getElementById("uploadForm");
+            const fileInput = document.getElementById("fileInput");
+            const dropZone = document.getElementById("dropZone");
+            const previewContainer =
+                document.getElementById("previewContainer");
+            const imagePreview = document.getElementById("imagePreview");
+            const fileName = document.getElementById("fileName");
+            const submitBtn = document.getElementById("submitUpload");
+            const progressDiv = document.getElementById("uploadProgress");
+            const progressBar = document.getElementById("progressBar");
+
+            // Open modal
+            [openBtn, openBtnEmpty].forEach((btn) => {
+                if (btn)
+                    btn.addEventListener("click", () => {
+                        modal.classList.remove("hidden");
+                    });
+            });
+
+            // Close modal
+            [closeBtn, cancelBtn].forEach((btn) => {
+                if (btn)
+                    btn.addEventListener("click", () => {
+                        modal.classList.add("hidden");
+                        resetForm();
+                    });
+            });
+
+            // Click outside to close
+            modal.addEventListener("click", (e) => {
+                if (e.target === modal) {
+                    modal.classList.add("hidden");
+                    resetForm();
+                }
+            });
+
+            // Drop zone click
+            dropZone.addEventListener("click", () => fileInput.click());
+
+            // Drag and drop
+            dropZone.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                dropZone.classList.add("border-pink-400", "bg-pink-50");
+            });
+
+            dropZone.addEventListener("dragleave", () => {
+                dropZone.classList.remove("border-pink-400", "bg-pink-50");
+            });
+
+            dropZone.addEventListener("drop", (e) => {
+                e.preventDefault();
+                dropZone.classList.remove("border-pink-400", "bg-pink-50");
+                if (e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    handleFileSelect(e.dataTransfer.files[0]);
+                }
+            });
+
+            // File input change
+            fileInput.addEventListener("change", (e) => {
+                if (e.target.files.length) {
+                    handleFileSelect(e.target.files[0]);
+                }
+            });
+
+            function handleFileSelect(file) {
+                if (!file.type.startsWith("image/")) {
+                    alert("Por favor selecciona una imagen");
+                    return;
+                }
+                if (file.size > 50 * 1024 * 1024) {
+                    alert("El archivo excede 50MB");
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                    previewContainer.classList.remove("hidden");
+                    dropZone.classList.add("hidden");
+                    fileName.textContent = file.name;
+                    submitBtn.disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+
+            function resetForm() {
+                form.reset();
+                previewContainer.classList.add("hidden");
+                dropZone.classList.remove("hidden");
+                submitBtn.disabled = true;
+                progressDiv.classList.add("hidden");
+                progressBar.style.width = "0%";
+            }
+
+            // Form submit
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+
+                const formData = new FormData(form);
+                submitBtn.disabled = true;
+                progressDiv.classList.remove("hidden");
+                progressBar.style.width = "30%";
+
+                try {
+                    const response = await fetch("/api/carousel", {
+                        method: "POST",
+                        body: formData,
+                    });
+
+                    progressBar.style.width = "80%";
+                    const result = await response.json();
+
+                    if (result.success) {
+                        progressBar.style.width = "100%";
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    } else {
+                        alert("Error: " + result.error);
+                        resetForm();
+                    }
+                } catch (error) {
+                    alert("Error al subir: " + error.message);
+                    resetForm();
+                }
+            });
+
+            // Delete photo buttons
+            document.querySelectorAll(".delete-photo-btn").forEach((btn) => {
+                btn.addEventListener("click", async () => {
+                    if (!confirm("¿Eliminar esta foto?")) return;
+
+                    const id = btn.dataset.id;
+                    try {
+                        const response = await fetch("/api/carousel", {
+                            method: "DELETE",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ id }),
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            window.location.reload();
+                        } else {
+                            alert("Error: " + result.error);
+                        }
+                    } catch (error) {
+                        alert("Error: " + error.message);
+                    }
+                });
+            });
+
+            // Set as principal buttons
+            document.querySelectorAll(".set-principal-btn").forEach((btn) => {
+                btn.addEventListener("click", async () => {
+                    const id = btn.dataset.id;
+                    const establecimientoId = btn.dataset.establecimientoId;
+
+                    try {
+                        const response = await fetch("/api/carousel", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                id,
+                                establecimiento_id: establecimientoId,
+                                es_principal: true,
+                            }),
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            window.location.reload();
+                        } else {
+                            alert("Error: " + result.error);
+                        }
+                    } catch (error) {
+                        alert("Error: " + error.message);
+                    }
+                });
+            });
+        });
+    </script>
+</Layout>

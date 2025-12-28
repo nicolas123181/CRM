@@ -9,10 +9,21 @@ const navLinks = [
   { name: "Licencias", href: "/licenses", icon: "📜" },
 ];
 
+const lugaresLinks = [
+  { name: "Establecimientos", href: "/establecimientos", icon: "🏪" },
+  { name: "Parques", href: "/parques", icon: "🌳" },
+  { name: "Deportes", href: "/deportes", icon: "⚽" },
+  { name: "Monumentos", href: "/monumentos", icon: "🏛️" },
+];
+
 const isActive = (href: string) => {
   if (href === "/dashboard") return pathname === href;
   return pathname.startsWith(href);
 };
+
+const isLugaresActive = lugaresLinks.some((link) =>
+  pathname.startsWith(link.href),
+);
 ---
 
 <nav
@@ -35,7 +46,7 @@ const isActive = (href: string) => {
             </span>
           </a>
         </div>
-        <div class="hidden sm:ml-8 sm:flex sm:space-x-1">
+        <div class="hidden sm:ml-8 sm:flex sm:space-x-1 sm:items-center">
           {
             navLinks.map((link) => (
               <a
@@ -51,6 +62,55 @@ const isActive = (href: string) => {
               </a>
             ))
           }
+
+          <!-- Dropdown Lugares -->
+          <div class="relative group">
+            <button
+              class={`inline-flex items-center px-3 pt-1 text-sm font-medium border-b-2 transition-all duration-200 ${
+                isLugaresActive
+                  ? "border-primary-500 text-primary-700"
+                  : "border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300"
+              }`}
+            >
+              <span class="mr-2 opacity-75">📍</span>
+              Lugares
+              <svg
+                class="ml-1 w-4 h-4 transition-transform group-hover:rotate-180"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </button>
+
+            <!-- Dropdown Menu -->
+            <div
+              class="absolute left-0 mt-2 w-48 rounded-xl shadow-lg bg-white ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top scale-95 group-hover:scale-100"
+            >
+              <div class="py-2">
+                {
+                  lugaresLinks.map((link) => (
+                    <a
+                      href={link.href}
+                      class={`flex items-center px-4 py-2.5 text-sm transition-colors ${
+                        isActive(link.href)
+                          ? "bg-primary-50 text-primary-700 font-medium"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span class="mr-3 text-lg">{link.icon}</span>
+                      {link.name}
+                    </a>
+                  ))
+                }
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="flex items-center space-x-4">
@@ -120,6 +180,28 @@ const isActive = (href: string) => {
           </a>
         ))
       }
+      <!-- Mobile: Lugares section -->
+      <div class="border-t border-gray-100 pt-2 mt-2">
+        <span
+          class="pl-3 text-xs font-semibold text-gray-400 uppercase tracking-wide"
+          >📍 Lugares</span
+        >
+        {
+          lugaresLinks.map((link) => (
+            <a
+              href={link.href}
+              class={`block pl-6 pr-4 py-2 border-l-4 text-base font-medium ${
+                isActive(link.href)
+                  ? "bg-primary-50 border-primary-500 text-primary-700"
+                  : "border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+              }`}
+            >
+              <span class="mr-2">{link.icon}</span>
+              {link.name}
+            </a>
+          ))
+        }
+      </div>
     </div>
   </div>
 </nav>

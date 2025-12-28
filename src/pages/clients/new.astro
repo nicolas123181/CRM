@@ -1,35 +1,27 @@
 ---
-import Layout from '../../layouts/Layout.astro';
-import Navbar from '../../components/Navbar.astro';
-import { supabase } from '../../lib/supabase';
+import Layout from "../../layouts/Layout.astro";
+import Navbar from "../../components/Navbar.astro";
+import { supabase } from "../../lib/supabase";
 
-const profile = Astro.locals.profile;
-const isAdmin = profile.role === 'admin';
+let errorMessage = "";
 
-let errorMessage = '';
-
-if (Astro.request.method === 'POST') {
-  if (!isAdmin) {
-    return Astro.redirect('/clients');
-  }
-
+if (Astro.request.method === "POST") {
   const formData = await Astro.request.formData();
-  const name = formData.get('name')?.toString();
-  const email = formData.get('email')?.toString();
-  const phone = formData.get('phone')?.toString();
-  const company = formData.get('company')?.toString();
+  const name = formData.get("name")?.toString();
+  const email = formData.get("email")?.toString();
+  const phone = formData.get("phone")?.toString();
+  const company = formData.get("company")?.toString();
 
   if (name && email) {
     const { data, error } = await supabase
-      .from('clients')
+      .from("clients")
       .insert([
         {
           name,
           email,
           phone: phone || null,
           company: company || null,
-          created_by: profile.id
-        }
+        },
       ])
       .select()
       .single();
@@ -40,19 +32,14 @@ if (Astro.request.method === 'POST') {
       return Astro.redirect(`/clients/${data.id}`);
     }
   } else {
-    errorMessage = 'Por favor, completa todos los campos requeridos.';
+    errorMessage = "Por favor, completa todos los campos requeridos.";
   }
-}
-
-// Redirect if not admin
-if (!isAdmin) {
-  return Astro.redirect('/clients');
 }
 ---
 
 <Layout title="Nuevo Cliente">
   <Navbar />
-  
+
   <main class="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
     <div class="animate-fade-in">
       <!-- Breadcrumb -->
@@ -61,8 +48,16 @@ if (!isAdmin) {
           <li>
             <div>
               <a href="/clients" class="text-gray-400 hover:text-gray-500">
-                <svg class="flex-shrink-0 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                <svg
+                  class="flex-shrink-0 h-5 w-5"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+                  ></path>
                 </svg>
                 <span class="sr-only">Inicio</span>
               </a>
@@ -70,48 +65,81 @@ if (!isAdmin) {
           </li>
           <li>
             <div class="flex items-center">
-              <svg class="flex-shrink-0 h-5 w-5 text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z" />
+              <svg
+                class="flex-shrink-0 h-5 w-5 text-gray-300"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                aria-hidden="true"
+              >
+                <path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z"></path>
               </svg>
-              <a href="/clients" class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700">Clientes</a>
+              <a
+                href="/clients"
+                class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700"
+                >Clientes</a
+              >
             </div>
           </li>
           <li>
             <div class="flex items-center">
-              <svg class="flex-shrink-0 h-5 w-5 text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z" />
+              <svg
+                class="flex-shrink-0 h-5 w-5 text-gray-300"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                aria-hidden="true"
+              >
+                <path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z"></path>
               </svg>
-              <span class="ml-4 text-sm font-medium text-gray-500" aria-current="page">Nuevo</span>
+              <span
+                class="ml-4 text-sm font-medium text-gray-500"
+                aria-current="page">Nuevo</span
+              >
             </div>
           </li>
         </ol>
       </nav>
 
-      <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden">
+      <div
+        class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden"
+      >
         <div class="px-4 py-5 sm:px-6 bg-gray-50/50 border-b border-gray-100">
           <h3 class="text-lg leading-6 font-medium text-gray-900">
             Registrar Nuevo Cliente
           </h3>
           <p class="mt-1 text-sm text-gray-500">
-            Completa la información para dar de alta un nuevo cliente en el sistema.
+            Completa la información para dar de alta un nuevo cliente en el
+            sistema.
           </p>
         </div>
-        
+
         <form method="POST" class="p-6 space-y-6">
-          {errorMessage && (
-            <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
-              <div class="flex">
-                <div class="flex-shrink-0">
-                  <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                  </svg>
-                </div>
-                <div class="ml-3">
-                  <p class="text-sm text-red-700">{errorMessage}</p>
+          {
+            errorMessage && (
+              <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+                <div class="flex">
+                  <div class="flex-shrink-0">
+                    <svg
+                      class="h-5 w-5 text-red-400"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <p class="text-sm text-red-700">{errorMessage}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )
+          }
 
           <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
             <div class="sm:col-span-3">
@@ -131,7 +159,10 @@ if (!isAdmin) {
             </div>
 
             <div class="sm:col-span-3">
-              <label for="company" class="block text-sm font-medium text-gray-700">
+              <label
+                for="company"
+                class="block text-sm font-medium text-gray-700"
+              >
                 Empresa
               </label>
               <div class="mt-1">
@@ -146,14 +177,29 @@ if (!isAdmin) {
             </div>
 
             <div class="sm:col-span-4">
-              <label for="email" class="block text-sm font-medium text-gray-700">
+              <label
+                for="email"
+                class="block text-sm font-medium text-gray-700"
+              >
                 Correo Electrónico <span class="text-red-500">*</span>
               </label>
               <div class="mt-1 relative rounded-md shadow-sm">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                <div
+                  class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+                >
+                  <svg
+                    class="h-5 w-5 text-gray-400"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"
+                    ></path>
+                    <path
+                      d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"
+                    ></path>
                   </svg>
                 </div>
                 <input
@@ -168,7 +214,10 @@ if (!isAdmin) {
             </div>
 
             <div class="sm:col-span-2">
-              <label for="phone" class="block text-sm font-medium text-gray-700">
+              <label
+                for="phone"
+                class="block text-sm font-medium text-gray-700"
+              >
                 Teléfono
               </label>
               <div class="mt-1">
