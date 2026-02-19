@@ -1,6 +1,7 @@
 ---
 import Layout from "../../../layouts/Layout.astro";
 import Navbar from "../../../components/Navbar.astro";
+import LanguageTabs from "../../../components/LanguageTabs.astro";
 import { supabase } from "../../../lib/supabase";
 
 const { id } = Astro.params;
@@ -27,6 +28,15 @@ const { data: establecimiento, error: fetchError } = await supabase
 if (fetchError || !establecimiento) {
     return Astro.redirect("/establecimientos");
 }
+
+// Fetch existing carousel photos
+const { data: carouselPhotos } = await supabase
+    .from("establecimiento_fotos")
+    .select("*")
+    .eq("establecimiento_id", id)
+    .order("orden", { ascending: true });
+
+const existingPhotos = carouselPhotos || [];
 
 if (Astro.request.method === "POST") {
     const formData = await Astro.request.formData();
@@ -55,6 +65,17 @@ if (Astro.request.method === "POST") {
     } catch (e) {
         imagenesCarrusel = [];
     }
+    
+    // Multi-language fields
+    const nombre_en = formData.get("nombre_en")?.toString() || null;
+    const nombre_de = formData.get("nombre_de")?.toString() || null;
+    const nombre_fr = formData.get("nombre_fr")?.toString() || null;
+    const descripcion_en = formData.get("descripcion_en")?.toString() || null;
+    const descripcion_de = formData.get("descripcion_de")?.toString() || null;
+    const descripcion_fr = formData.get("descripcion_fr")?.toString() || null;
+    const horario_en = formData.get("horario_en")?.toString() || null;
+    const horario_de = formData.get("horario_de")?.toString() || null;
+    const horario_fr = formData.get("horario_fr")?.toString() || null;
 
     if (nombre && latitud && longitud) {
         const { error } = await supabase
@@ -72,6 +93,15 @@ if (Astro.request.method === "POST") {
                 telefono: telefono ? parseInt(telefono) : null,
                 reservas_url,
                 mensaje_promocional,
+                nombre_en,
+                nombre_de,
+                nombre_fr,
+                descripcion_en,
+                descripcion_de,
+                descripcion_fr,
+                horario_en,
+                horario_de,
+                horario_fr,
             })
             .eq("id", id);
 
@@ -240,74 +270,61 @@ const est = establecimiento;
                         )
                     }
 
-                    <!-- Sección: Información Básica -->
+                    <!-- Sección: Información Básica con Traducciones -->
                     <div class="mb-8">
                         <h4
-                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2"
                         >
-                            Información Básica
+                            🌐 Información Básica y Traducciones
                         </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="md:col-span-2">
-                                <label
-                                    for="nombre"
-                                    class="block text-sm font-medium text-gray-700 mb-1"
-                                >
-                                    Nombre <span class="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    name="nombre"
-                                    id="nombre"
-                                    required
-                                    value={est.nombre}
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                />
-                            </div>
-                            <div>
-                                <label
-                                    for="categoria_id"
-                                    class="block text-sm font-medium text-gray-700 mb-1"
-                                >
-                                    Categoría <span class="text-red-500">*</span
-                                    >
-                                </label>
-                                <select
-                                    name="categoria_id"
-                                    id="categoria_id"
-                                    required
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                >
-                                    {
-                                        categorias?.map((cat) => (
-                                            <option
-                                                value={cat.id}
-                                                selected={
-                                                    cat.id === est.categoria_id
-                                                }
-                                            >
-                                                {cat.nombre}
-                                            </option>
-                                        ))
-                                    }
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="mt-4">
+                        
+                        <!-- Category selector (not translatable) -->
+                        <div class="mb-4">
                             <label
-                                for="descripcion"
+                                for="categoria_id"
                                 class="block text-sm font-medium text-gray-700 mb-1"
-                                >Descripción</label
                             >
-                            <textarea
-                                name="descripcion"
-                                id="descripcion"
-                                rows="3"
+                                Categoría <span class="text-red-500">*</span>
+                            </label>
+                            <select
+                                name="categoria_id"
+                                id="categoria_id"
+                                required
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                >{est.descripcion || ""}</textarea
                             >
+                                {
+                                    categorias?.map((cat) => (
+                                        <option
+                                            value={cat.id}
+                                            selected={
+                                                cat.id === est.categoria_id
+                                            }
+                                        >
+                                            {cat.nombre}
+                                        </option>
+                                    ))
+                                }
+                            </select>
                         </div>
+                        
+                        <!-- Language Tabs for nombre and descripcion -->
+                        <LanguageTabs 
+                            prefix="establecimientos_edit"
+                            fields={[
+                                { name: "nombre", label: "Nombre", type: "input", placeholder: "Nombre del establecimiento", required: true },
+                                { name: "descripcion", label: "Descripción", type: "textarea", placeholder: "Descripción del establecimiento", rows: 3 }
+                            ]}
+                            values={{
+                                nombre: est.nombre || "",
+                                nombre_en: est.nombre_en || "",
+                                nombre_de: est.nombre_de || "",
+                                nombre_fr: est.nombre_fr || "",
+                                descripcion: est.descripcion || "",
+                                descripcion_en: est.descripcion_en || "",
+                                descripcion_de: est.descripcion_de || "",
+                                descripcion_fr: est.descripcion_fr || "",
+                            }}
+                        />
                     </div>
 
                     <!-- Sección: Cliente -->
@@ -467,30 +484,109 @@ const est = establecimiento;
                         </div>
                     </div>
 
-                    <!-- Sección: Carrusel de Imágenes -->
+                    <!-- Sección: Gestión del Carrusel -->
                     <div class="mb-8">
                         <h4
                             class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
                         >
-                            🖼️ Añadir Imágenes al Carrusel
+                            🖼️ Galería del Carrusel
                         </h4>
                         <p class="text-sm text-gray-600 mb-3">
-                            Sube nuevas imágenes para el carrusel.
+                            Gestiona las fotos del carrusel. Puedes añadir, eliminar y establecer la foto principal.
                         </p>
 
-                        <input
-                            type="hidden"
-                            name="imagenes_carrusel"
-                            id="imagenes_carrusel"
-                            value="[]"
-                        />
+                        <!-- Fotos Existentes -->
+                        {existingPhotos.length > 0 ? (
+                            <div class="mb-6">
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="text-sm font-medium text-gray-700">
+                                        Fotos actuales
+                                    </span>
+                                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                        {existingPhotos.length} {existingPhotos.length === 1 ? 'foto' : 'fotos'}
+                                    </span>
+                                </div>
+                                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="existingPhotosGrid">
+                                    {existingPhotos.map((foto: any, index: number) => (
+                                        <div 
+                                            class={`relative group rounded-xl overflow-hidden border-2 ${foto.es_principal ? 'border-yellow-400 ring-2 ring-yellow-200' : 'border-gray-200'}`}
+                                            data-photo-id={foto.id}
+                                        >
+                                            <div class="aspect-square bg-gray-100">
+                                                <img
+                                                    src={foto.imagen_url}
+                                                    alt={foto.descripcion || `Foto ${index + 1}`}
+                                                    class="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                            
+                                            <!-- Principal Badge -->
+                                            {foto.es_principal && (
+                                                <div class="absolute top-2 left-2 bg-yellow-400 text-yellow-900 px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1">
+                                                    ⭐ Principal
+                                                </div>
+                                            )}
+                                            
+                                            <!-- Order Badge -->
+                                            <div class="absolute top-2 right-2 bg-black/60 text-white px-2 py-0.5 rounded-full text-xs">
+                                                #{index + 1}
+                                            </div>
+                                            
+                                            <!-- Actions Overlay -->
+                                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all duration-200 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                                                {!foto.es_principal && (
+                                                    <button
+                                                        type="button"
+                                                        class="set-principal-btn bg-yellow-400 hover:bg-yellow-500 text-yellow-900 p-2 rounded-lg transition-all hover:scale-110"
+                                                        data-id={foto.id}
+                                                        data-establecimiento-id={id}
+                                                        title="Establecer como principal"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    class="delete-photo-btn bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-all hover:scale-110"
+                                                    data-id={foto.id}
+                                                    title="Eliminar foto"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div class="mb-6 p-6 bg-gray-50 rounded-xl text-center">
+                                <span class="text-4xl block mb-2">📷</span>
+                                <p class="text-sm text-gray-600">No hay fotos en el carrusel</p>
+                                <p class="text-xs text-gray-400 mt-1">Añade fotos usando el formulario de abajo</p>
+                            </div>
+                        )}
 
-                        <div
-                            class="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 transition-colors"
-                        >
+                        <!-- Añadir Nuevas Fotos -->
+                        <div class="p-4 bg-purple-50 border-2 border-dashed border-purple-300 rounded-xl hover:border-purple-400 transition-colors">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="text-lg">➕</span>
+                                <span class="text-sm font-medium text-purple-800">Añadir nuevas fotos</span>
+                            </div>
+                            
+                            <input
+                                type="hidden"
+                                name="imagenes_carrusel"
+                                id="imagenes_carrusel"
+                                value="[]"
+                            />
+
                             <div
                                 id="carouselDropZone"
-                                class="cursor-pointer text-center py-4"
+                                class="cursor-pointer text-center py-4 bg-white rounded-lg border border-purple-200 hover:bg-purple-50 transition-colors"
                             >
                                 <input
                                     type="file"
@@ -499,12 +595,12 @@ const est = establecimiento;
                                     multiple
                                     class="hidden"
                                 />
-                                <span class="text-3xl block mb-2">🎠</span>
-                                <p class="text-sm text-gray-600">
-                                    Haz clic o arrastra imágenes (máx. 5)
+                                <span class="text-2xl block mb-1">📁</span>
+                                <p class="text-sm text-purple-700">
+                                    Haz clic o arrastra imágenes aquí
                                 </p>
-                                <p class="text-xs text-gray-400">
-                                    Bucket: Carruseles
+                                <p class="text-xs text-purple-500 mt-1">
+                                    Máximo 5 imágenes a la vez
                                 </p>
                             </div>
 
@@ -548,28 +644,32 @@ const est = establecimiento;
                         </div>
                     </div>
 
-                    <!-- Sección: Contacto -->
+                    <!-- Sección: Contacto y Horario -->
                     <div class="mb-8">
                         <h4
                             class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
                         >
                             📞 Contacto y Horario
                         </h4>
+                        
+                        <!-- Horario with translations -->
+                        <div class="mb-4">
+                            <h5 class="text-xs font-medium text-gray-600 mb-2">🌐 Horario (multi-idioma)</h5>
+                            <LanguageTabs 
+                                prefix="establecimientos_edit_horario"
+                                fields={[
+                                    { name: "horario", label: "Horario", type: "input", placeholder: "L-V: 9:00-21:00" }
+                                ]}
+                                values={{
+                                    horario: est.horario || "",
+                                    horario_en: est.horario_en || "",
+                                    horario_de: est.horario_de || "",
+                                    horario_fr: est.horario_fr || "",
+                                }}
+                            />
+                        </div>
+                        
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label
-                                    for="horario"
-                                    class="block text-sm font-medium text-gray-700 mb-1"
-                                    >Horario</label
-                                >
-                                <input
-                                    type="text"
-                                    name="horario"
-                                    id="horario"
-                                    value={est.horario || ""}
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                />
-                            </div>
                             <div>
                                 <label
                                     for="telefono"
@@ -584,20 +684,20 @@ const est = establecimiento;
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
                                 />
                             </div>
-                        </div>
-                        <div class="mt-4">
-                            <label
-                                for="reservas_url"
-                                class="block text-sm font-medium text-gray-700 mb-1"
-                                >URL de Reservas</label
-                            >
-                            <input
-                                type="url"
-                                name="reservas_url"
-                                id="reservas_url"
-                                value={est.reservas_url || ""}
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                            />
+                            <div>
+                                <label
+                                    for="reservas_url"
+                                    class="block text-sm font-medium text-gray-700 mb-1"
+                                    >URL de Reservas</label
+                                >
+                                <input
+                                    type="url"
+                                    name="reservas_url"
+                                    id="reservas_url"
+                                    value={est.reservas_url || ""}
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -921,6 +1021,84 @@ const est = establecimiento;
                 updateCarouselPreviews();
                 updateCarouselInput();
             };
+
+            // ================== EXISTING PHOTOS MANAGEMENT ==================
+            // Delete photo buttons
+            document.querySelectorAll('.delete-photo-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    if (!confirm('¿Eliminar esta foto del carrusel?')) return;
+
+                    const id = btn.dataset.id;
+                    btn.disabled = true;
+                    btn.innerHTML = '<svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+
+                    try {
+                        const response = await fetch('/api/carousel', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id })
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            // Remove photo card from DOM
+                            const photoCard = btn.closest('[data-photo-id]');
+                            if (photoCard) {
+                                photoCard.style.transform = 'scale(0)';
+                                photoCard.style.opacity = '0';
+                                setTimeout(() => {
+                                    photoCard.remove();
+                                    // Update count
+                                    const remaining = document.querySelectorAll('[data-photo-id]').length;
+                                    if (remaining === 0) {
+                                        window.location.reload();
+                                    }
+                                }, 300);
+                            }
+                        } else {
+                            alert('Error: ' + result.error);
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        alert('Error: ' + error.message);
+                        window.location.reload();
+                    }
+                });
+            });
+
+            // Set as principal buttons
+            document.querySelectorAll('.set-principal-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    
+                    const id = btn.dataset.id;
+                    const establecimientoId = btn.dataset.establecimientoId;
+                    btn.disabled = true;
+                    btn.innerHTML = '<svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+
+                    try {
+                        const response = await fetch('/api/carousel', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                id,
+                                establecimiento_id: establecimientoId,
+                                es_principal: true
+                            })
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            window.location.reload();
+                        } else {
+                            alert('Error: ' + result.error);
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        alert('Error: ' + error.message);
+                        window.location.reload();
+                    }
+                });
+            });
         });
     </script>
 </Layout>

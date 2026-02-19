@@ -8,6 +8,7 @@ let actionError = "";
 
 const url = new URL(Astro.request.url);
 const searchName = url.searchParams.get("nombre") || "";
+const sortBy = url.searchParams.get("ordenar") || "id"; // Default to ID
 
 if (Astro.request.method === "POST") {
     const formData = await Astro.request.formData();
@@ -28,16 +29,42 @@ if (Astro.request.method === "POST") {
     }
 }
 
-let query = supabase
-    .from("monumentos")
-    .select("*")
-    .order("orden", { ascending: true });
+let monumentos: Monumento[] = [];
+let error = null;
+let clickCountMap: Record<number, number> = {};
 
+// Always get click counts for display
+const { data: clickCounts } = await supabase
+    .from("clicks_monumentos")
+    .select("monumento_id");
+
+// Count clicks per monument
+clickCounts?.forEach((click: any) => {
+    const id = click.monumento_id;
+    clickCountMap[id] = (clickCountMap[id] || 0) + 1;
+});
+
+// Fetch monuments
+let query = supabase.from("monumentos").select("*");
 if (searchName) {
     query = query.ilike("nombre", `%${searchName}%`);
 }
+const { data, error: fetchError } = await query;
+error = fetchError;
 
-let { data: monumentos, error } = await query;
+if (data) {
+    if (sortBy === "visitas") {
+        // Sort by click count descending
+        monumentos = data.sort((a, b) => {
+            const clicksA = clickCountMap[a.id] || 0;
+            const clicksB = clickCountMap[b.id] || 0;
+            return clicksB - clicksA;
+        });
+    } else {
+        // Default: sort by ID ascending
+        monumentos = data.sort((a, b) => a.id - b.id);
+    }
+}
 ---
 
 <Layout title="Monumentos">
@@ -107,6 +134,43 @@ let { data: monumentos, error } = await query;
                 </form>
             </div>
 
+            <!-- Sort Options -->
+            <div class="mb-6 flex items-center gap-4">
+                <span class="text-sm font-medium text-gray-700"
+                    >Ordenar por:</span
+                >
+                <div class="flex gap-2">
+                    <a
+                        href={`/monumentos?ordenar=id${searchName ? `&nombre=${searchName}` : ""}`}
+                        class={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                            sortBy === "id"
+                                ? "bg-amber-600 text-white shadow-sm"
+                                : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                        }`}
+                    >
+                        📋 Por ID
+                    </a>
+                    <a
+                        href={`/monumentos?ordenar=visitas${searchName ? `&nombre=${searchName}` : ""}`}
+                        class={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                            sortBy === "visitas"
+                                ? "bg-amber-600 text-white shadow-sm"
+                                : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                        }`}
+                    >
+                        📊 Más visitados
+                    </a>
+                </div>
+                {
+                    monumentos && monumentos.length > 0 && (
+                        <span class="text-sm text-gray-500 ml-auto">
+                            {monumentos.length} monumento
+                            {monumentos.length !== 1 ? "s" : ""}
+                        </span>
+                    )
+                }
+            </div>
+
             <!-- Grid -->
             <div class="mt-8">
                 {
@@ -151,18 +215,27 @@ let { data: monumentos, error } = await query;
                                         <div class="flex items-start justify-between">
                                             <div class="flex-1">
                                                 <div class="flex items-center gap-2 mb-1">
-                                                    {mon.orden !== null &&
-                                                        mon.orden > 0 && (
-                                                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">
-                                                                {mon.orden}
-                                                            </span>
-                                                        )}
+                                                    <span class="inline-flex items-center justify-center px-2 py-0.5 rounded bg-gray-100 text-gray-600 text-xs font-medium">
+                                                        ID: {mon.id}
+                                                    </span>
                                                     {mon.audio_url && (
                                                         <span
                                                             class="text-amber-600"
                                                             title="Tiene audio"
                                                         >
                                                             🔊
+                                                        </span>
+                                                    )}
+                                                    {clickCountMap[mon.id] >
+                                                        0 && (
+                                                        <span
+                                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-100 text-green-700 text-xs font-medium"
+                                                            title="Total de visitas"
+                                                        >
+                                                            👁️{" "}
+                                                            {clickCountMap[
+                                                                mon.id
+                                                            ].toLocaleString()}
                                                         </span>
                                                     )}
                                                 </div>

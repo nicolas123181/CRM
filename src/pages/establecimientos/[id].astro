@@ -491,6 +491,118 @@ if (monumentIds.length > 0) {
                             </form>
                         </div>
                     </div>
+
+                    <!-- Carousel Photos Section (View Only) -->
+                    {carouselPhotos.length > 0 && (
+                        <div class="mt-6 bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden">
+                            <div class="px-6 py-4 bg-gradient-to-r from-pink-500 to-rose-600 flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-white flex items-center">
+                                        📸 Galería del Carrusel
+                                    </h3>
+                                    <p class="text-sm text-pink-100 mt-0.5">
+                                        Fotos visibles en la app móvil
+                                    </p>
+                                </div>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/20 text-white">
+                                    {carouselPhotos.length} {carouselPhotos.length === 1 ? 'foto' : 'fotos'}
+                                </span>
+                            </div>
+                            
+                            <div class="p-6">
+                                <!-- Main Carousel Display -->
+                                <div class="relative" id="carouselContainer">
+                                    <div class="overflow-hidden rounded-xl">
+                                        <div id="carouselSlides" class="flex transition-transform duration-300 ease-in-out">
+                                            {carouselPhotos.map((foto, index) => (
+                                                <div class="carousel-slide flex-shrink-0 w-full" data-index={index}>
+                                                    <div class="aspect-video bg-gray-100 rounded-xl overflow-hidden relative group">
+                                                        <img
+                                                            src={foto.imagen_url}
+                                                            alt={foto.descripcion || `Foto ${index + 1}`}
+                                                            class="w-full h-full object-cover"
+                                                        />
+                                                        <!-- View Full Size Overlay -->
+                                                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                                            <button
+                                                                class="view-fullsize-btn bg-white/95 hover:bg-white text-gray-800 font-medium px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 transform scale-90 group-hover:scale-100 transition-all duration-200"
+                                                                data-url={foto.imagen_url}
+                                                                data-description={foto.descripcion || `Foto ${index + 1}`}
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                                                                </svg>
+                                                                Ver foto
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    {foto.descripcion && (
+                                                        <p class="mt-2 text-sm text-gray-600 text-center">
+                                                            {foto.descripcion}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Navigation Arrows -->
+                                    {carouselPhotos.length > 1 && (
+                                        <>
+                                            <button
+                                                id="prevBtn"
+                                                class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white shadow-lg rounded-full p-2 transition-all hover:scale-110"
+                                                aria-label="Foto anterior"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 text-gray-700">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                                                </svg>
+                                            </button>
+                                            <button
+                                                id="nextBtn"
+                                                class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white shadow-lg rounded-full p-2 transition-all hover:scale-110"
+                                                aria-label="Siguiente foto"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 text-gray-700">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                                </svg>
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+
+                                <!-- Thumbnail Navigation -->
+                                {carouselPhotos.length > 1 && (
+                                    <div class="mt-4 flex gap-2 overflow-x-auto pb-2">
+                                        {carouselPhotos.map((foto, index) => (
+                                            <button
+                                                class="carousel-thumb flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 border-transparent hover:border-pink-400 transition-all focus:outline-none focus:ring-2 focus:ring-pink-500"
+                                                data-index={index}
+                                            >
+                                                <img
+                                                    src={foto.imagen_url}
+                                                    alt={`Miniatura ${index + 1}`}
+                                                    class="w-full h-full object-cover"
+                                                />
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <!-- Dots Indicator -->
+                                {carouselPhotos.length > 1 && (
+                                    <div class="mt-4 flex justify-center gap-2">
+                                        {carouselPhotos.map((_, index) => (
+                                            <button
+                                                class="carousel-dot w-2 h-2 rounded-full bg-gray-300 transition-all"
+                                                data-index={index}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <!-- Statistics Sidebar -->
@@ -739,6 +851,42 @@ if (monumentIds.length > 0) {
             </div>
         </div>
     </main>
+
+    <!-- Fullscreen Lightbox Modal -->
+    <div
+        id="lightboxModal"
+        class="fixed inset-0 bg-black/95 backdrop-blur-sm hidden z-[60] flex items-center justify-center"
+    >
+        <button
+            id="closeLightbox"
+            class="absolute top-4 right-4 text-white/80 hover:text-white transition-colors z-10"
+            aria-label="Cerrar"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-8 h-8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+        
+        <div class="relative max-w-[95vw] max-h-[95vh] flex flex-col items-center">
+            <img
+                id="lightboxImage"
+                src=""
+                alt=""
+                class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+            />
+            <p id="lightboxDescription" class="mt-4 text-white/90 text-center text-lg max-w-2xl"></p>
+        </div>
+
+        <!-- Navigation hint -->
+        <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/50 text-sm flex items-center gap-4">
+            <span class="flex items-center gap-1">
+                <kbd class="px-2 py-1 bg-white/10 rounded text-xs">ESC</kbd>
+                para cerrar
+            </span>
+            <span>•</span>
+            <span>Clic fuera para cerrar</span>
+        </div>
+    </div>
 
     <!-- Upload Modal -->
     <div
@@ -1111,6 +1259,119 @@ if (monumentIds.length > 0) {
                     }
                 });
             });
+
+            // ========== VIEW-ONLY CAROUSEL FUNCTIONALITY ==========
+            const carouselSlides = document.getElementById('carouselSlides');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const thumbs = document.querySelectorAll('.carousel-thumb');
+            const dots = document.querySelectorAll('.carousel-dot');
+            
+            if (carouselSlides) {
+                let currentSlide = 0;
+                const totalSlides = document.querySelectorAll('.carousel-slide').length;
+                
+                function goToSlide(index) {
+                    if (index < 0) index = totalSlides - 1;
+                    if (index >= totalSlides) index = 0;
+                    currentSlide = index;
+                    carouselSlides.style.transform = `translateX(-${currentSlide * 100}%)`;
+                    
+                    // Update active states
+                    thumbs.forEach((thumb, i) => {
+                        thumb.classList.toggle('border-pink-500', i === currentSlide);
+                        thumb.classList.toggle('border-transparent', i !== currentSlide);
+                    });
+                    
+                    dots.forEach((dot, i) => {
+                        dot.classList.toggle('bg-pink-500', i === currentSlide);
+                        dot.classList.toggle('bg-gray-300', i !== currentSlide);
+                    });
+                }
+                
+                // Initialize first slide
+                goToSlide(0);
+                
+                // Navigation arrows
+                if (prevBtn) {
+                    prevBtn.addEventListener('click', () => goToSlide(currentSlide - 1));
+                }
+                if (nextBtn) {
+                    nextBtn.addEventListener('click', () => goToSlide(currentSlide + 1));
+                }
+                
+                // Thumbnail clicks
+                thumbs.forEach((thumb) => {
+                    thumb.addEventListener('click', () => {
+                        goToSlide(parseInt(thumb.dataset.index));
+                    });
+                });
+                
+                // Dot clicks
+                dots.forEach((dot) => {
+                    dot.addEventListener('click', () => {
+                        goToSlide(parseInt(dot.dataset.index));
+                    });
+                });
+                
+                // Keyboard navigation
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowLeft') goToSlide(currentSlide - 1);
+                    if (e.key === 'ArrowRight') goToSlide(currentSlide + 1);
+                });
+            }
+
+            // ========== LIGHTBOX FUNCTIONALITY ==========
+            const lightboxModal = document.getElementById('lightboxModal');
+            const lightboxImage = document.getElementById('lightboxImage');
+            const lightboxDescription = document.getElementById('lightboxDescription');
+            const closeLightbox = document.getElementById('closeLightbox');
+            const viewFullsizeBtns = document.querySelectorAll('.view-fullsize-btn');
+            
+            if (lightboxModal && lightboxImage) {
+                function openLightbox(url, description) {
+                    lightboxImage.src = url;
+                    lightboxImage.alt = description;
+                    lightboxDescription.textContent = description;
+                    lightboxModal.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                }
+                
+                function closeLightboxFn() {
+                    lightboxModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                    lightboxImage.src = '';
+                }
+                
+                // Open lightbox on button click
+                viewFullsizeBtns.forEach((btn) => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const url = btn.dataset.url;
+                        const description = btn.dataset.description;
+                        openLightbox(url, description);
+                    });
+                });
+                
+                // Close on X button
+                if (closeLightbox) {
+                    closeLightbox.addEventListener('click', closeLightboxFn);
+                }
+                
+                // Close on backdrop click
+                lightboxModal.addEventListener('click', (e) => {
+                    if (e.target === lightboxModal) {
+                        closeLightboxFn();
+                    }
+                });
+                
+                // Close on ESC key
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && !lightboxModal.classList.contains('hidden')) {
+                        closeLightboxFn();
+                    }
+                });
+            }
         });
     </script>
 </Layout>

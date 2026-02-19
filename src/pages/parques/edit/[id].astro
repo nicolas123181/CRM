@@ -1,6 +1,7 @@
 ---
 import Layout from "../../../layouts/Layout.astro";
 import Navbar from "../../../components/Navbar.astro";
+import LanguageTabs from "../../../components/LanguageTabs.astro";
 import { supabase } from "../../../lib/supabase";
 
 const { id } = Astro.params;
@@ -23,6 +24,11 @@ if (Astro.request.method === "POST") {
     const latitud = formData.get("latitud")?.toString();
     const longitud = formData.get("longitud")?.toString();
 
+    // Multi-language fields
+    const nombre_en = formData.get("nombre_en")?.toString() || null;
+    const nombre_de = formData.get("nombre_de")?.toString() || null;
+    const nombre_fr = formData.get("nombre_fr")?.toString() || null;
+
     if (nombre) {
         const { error } = await supabase
             .from("parques")
@@ -31,6 +37,9 @@ if (Astro.request.method === "POST") {
                 imagen_url,
                 latitud: latitud ? parseFloat(latitud) : null,
                 longitud: longitud ? parseFloat(longitud) : null,
+                nombre_en,
+                nombre_de,
+                nombre_fr,
             })
             .eq("id", id);
 
@@ -137,21 +146,32 @@ if (Astro.request.method === "POST") {
                         )
                     }
 
-                    <!-- Nombre -->
+                    <!-- Nombre con Traducciones -->
                     <div class="mb-6">
-                        <label
-                            for="nombre"
-                            class="block text-sm font-medium text-gray-700 mb-1"
+                        <h4
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2"
                         >
-                            Nombre <span class="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            name="nombre"
-                            id="nombre"
-                            required
-                            value={parque.nombre || ""}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                            🌐 Nombre y Traducciones
+                        </h4>
+
+                        <!-- Language Tabs -->
+                        <LanguageTabs
+                            prefix="parques"
+                            fields={[
+                                {
+                                    name: "nombre",
+                                    label: "Nombre",
+                                    type: "input",
+                                    placeholder: "Nombre del parque",
+                                    required: true,
+                                },
+                            ]}
+                            values={{
+                                nombre: parque.nombre || "",
+                                nombre_en: parque.nombre_en || "",
+                                nombre_de: parque.nombre_de || "",
+                                nombre_fr: parque.nombre_fr || "",
+                            }}
                         />
                     </div>
 

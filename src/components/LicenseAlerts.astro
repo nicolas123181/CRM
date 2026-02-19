@@ -1,0 +1,377 @@
+---
+import { supabase } from "../lib/supabase";
+
+// Get current date
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+// Date 7 days from now
+const sevenDaysFromNow = new Date(today);
+sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+
+// Fetch licenses that are expiring soon or already expired
+const { data: licenses } = await supabase
+    .from("licenses")
+    .select(`
+        id,
+        end_date,
+        status,
+        clients (name, company),
+        establecimientos (nombre),
+        products (name)
+    `)
+    .not("end_date", "is", null)
+    .order("end_date", { ascending: true });
+
+// Fetch licenses pending payment
+const { data: pendingPaymentLicenses } = await supabase
+    .from("licenses")
+    .select(`
+        id,
+        end_date,
+        status,
+        clients (name, company),
+        establecimientos (nombre),
+        products (name)
+    `)
+    .eq("status", "pendiente_pago")
+    .order("end_date", { ascending: true });
+
+// Categorize licenses
+const expiringLicenses: any[] = [];
+const expiredLicenses: any[] = [];
+const pendingLicenses: any[] = [];
+
+licenses?.forEach((license: any) => {
+    if (!license.end_date) return;
+    
+    const endDate = new Date(license.end_date);
+    endDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = endDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+        // Already expired
+        expiredLicenses.push({
+            ...license,
+            daysAgo: Math.abs(diffDays),
+            endDateFormatted: endDate.toLocaleDateString("es-ES")
+        });
+    } else if (diffDays <= 7) {
+        // Expiring within 7 days
+        expiringLicenses.push({
+            ...license,
+            daysRemaining: diffDays,
+            endDateFormatted: endDate.toLocaleDateString("es-ES")
+        });
+    }
+});
+
+// Process pending payment licenses
+pendingPaymentLicenses?.forEach((license: any) => {
+    pendingLicenses.push({
+        ...license,
+        endDateFormatted: license.end_date ? new Date(license.end_date).toLocaleDateString("es-ES") : null
+    });
+});
+
+const totalAlerts = expiringLicenses.length + expiredLicenses.length + pendingLicenses.length;
+---
+
+{totalAlerts > 0 && (
+    <div class="relative" id="alertsContainer">
+        <!-- Notification Bell Button -->
+        <button
+            id="alertsToggle"
+            class="relative p-2 text-gray-500 hover:text-gray-700 transition-colors rounded-full hover:bg-gray-100"
+            title="Alertas de licencias"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+            </svg>
+            <!-- Counter Badge -->
+            <span 
+                id="alertsCounter"
+                class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center animate-pulse"
+            >
+                {totalAlerts}
+            </span>
+        </button>
+
+        <!-- Alerts Dropdown Panel -->
+        <div
+            id="alertsPanel"
+            class="hidden absolute right-0 mt-2 w-96 max-h-[70vh] overflow-y-auto bg-white rounded-xl shadow-2xl ring-1 ring-black/10 z-50"
+        >
+            <div class="px-4 py-3 border-b border-gray-100 bg-gray-50/50 rounded-t-xl flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                    🔔 Alertas de Licencias
+                </h3>
+                <button
+                    id="closeAlerts"
+                    class="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="divide-y divide-gray-100" id="alertsList">
+                <!-- Expired Licenses (Red) -->
+                {expiredLicenses.map((license) => (
+                    <div 
+                        class="alert-item p-4 bg-red-50 hover:bg-red-100 transition-colors"
+                        data-license-id={license.id}
+                        data-alert-type="expired"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-500 text-white">
+                                        ⛔ CADUCADA
+                                    </span>
+                                </div>
+                                <p class="text-sm font-medium text-gray-900 truncate">
+                                    Licencia #{license.id} - {license.clients?.name || "Sin cliente"}
+                                </p>
+                                <p class="text-xs text-gray-600 mt-0.5">
+                                    {license.establecimientos?.nombre && (
+                                        <span class="font-medium">{license.establecimientos.nombre} • </span>
+                                    )}
+                                    {license.products?.name}
+                                </p>
+                                <p class="text-xs text-red-700 font-medium mt-1">
+                                    Caducó hace {license.daysAgo} {license.daysAgo === 1 ? "día" : "días"} ({license.endDateFormatted})
+                                </p>
+                            </div>
+                            <button
+                                class="dismiss-alert flex-shrink-0 text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-200 transition-colors"
+                                title="Descartar alerta"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                ))}
+
+                <!-- Expiring Soon Licenses (Yellow/Orange) -->
+                {expiringLicenses.map((license) => (
+                    <div 
+                        class="alert-item p-4 bg-amber-50 hover:bg-amber-100 transition-colors"
+                        data-license-id={license.id}
+                        data-alert-type="expiring"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500 text-white">
+                                        ⚠️ POR CADUCAR
+                                    </span>
+                                </div>
+                                <p class="text-sm font-medium text-gray-900 truncate">
+                                    Licencia #{license.id} - {license.clients?.name || "Sin cliente"}
+                                </p>
+                                <p class="text-xs text-gray-600 mt-0.5">
+                                    {license.establecimientos?.nombre && (
+                                        <span class="font-medium">{license.establecimientos.nombre} • </span>
+                                    )}
+                                    {license.products?.name}
+                                </p>
+                                <p class="text-xs text-amber-700 font-medium mt-1">
+                                    {license.daysRemaining === 0 
+                                        ? "Caduca hoy" 
+                                        : `Caduca en ${license.daysRemaining} ${license.daysRemaining === 1 ? "día" : "días"}`} ({license.endDateFormatted})
+                                </p>
+                            </div>
+                            <button
+                                class="dismiss-alert flex-shrink-0 text-gray-400 hover:text-amber-600 p-1 rounded hover:bg-amber-200 transition-colors"
+                                title="Descartar alerta"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                ))}
+
+                <!-- Pending Payment Licenses (Violet) -->
+                {pendingLicenses.map((license) => (
+                    <div 
+                        class="alert-item p-4 bg-violet-50 hover:bg-violet-100 transition-colors"
+                        data-license-id={license.id}
+                        data-alert-type="pending"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-violet-500 text-white">
+                                        💳 PENDIENTE PAGO
+                                    </span>
+                                </div>
+                                <p class="text-sm font-medium text-gray-900 truncate">
+                                    Licencia #{license.id} - {license.clients?.name || "Sin cliente"}
+                                </p>
+                                <p class="text-xs text-gray-600 mt-0.5">
+                                    {license.establecimientos?.nombre && (
+                                        <span class="font-medium">{license.establecimientos.nombre} • </span>
+                                    )}
+                                    {license.products?.name}
+                                </p>
+                                <p class="text-xs text-violet-700 font-medium mt-1">
+                                    Pago pendiente de confirmación
+                                </p>
+                            </div>
+                            <button
+                                class="dismiss-alert flex-shrink-0 text-gray-400 hover:text-violet-600 p-1 rounded hover:bg-violet-200 transition-colors"
+                                title="Descartar alerta"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <!-- Empty State (shown when all dismissed) -->
+            <div id="emptyAlerts" class="hidden p-8 text-center">
+                <span class="text-4xl block mb-2">✅</span>
+                <p class="text-sm text-gray-600">No hay alertas pendientes</p>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-4 py-3 border-t border-gray-100 bg-gray-50/50 rounded-b-xl">
+                <a 
+                    href="/licenses?status=activa"
+                    class="text-sm text-primary-600 hover:text-primary-800 font-medium"
+                >
+                    Ver todas las licencias →
+                </a>
+            </div>
+        </div>
+    </div>
+)}
+
+<script is:inline>
+document.addEventListener('DOMContentLoaded', function() {
+    const alertsContainer = document.getElementById('alertsContainer');
+    if (!alertsContainer) return;
+
+    const alertsToggle = document.getElementById('alertsToggle');
+    const alertsPanel = document.getElementById('alertsPanel');
+    const closeAlerts = document.getElementById('closeAlerts');
+    const alertsCounter = document.getElementById('alertsCounter');
+    const alertsList = document.getElementById('alertsList');
+    const emptyAlerts = document.getElementById('emptyAlerts');
+    
+    // Get dismissed alerts from localStorage
+    const STORAGE_KEY = 'dismissedLicenseAlerts';
+    function getDismissedAlerts() {
+        try {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        } catch {
+            return [];
+        }
+    }
+    
+    function saveDismissedAlerts(alerts) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(alerts));
+    }
+    
+    // Hide already dismissed alerts on load
+    function hideDismissedAlerts() {
+        const dismissed = getDismissedAlerts();
+        let visibleCount = 0;
+        
+        document.querySelectorAll('.alert-item').forEach(item => {
+            const licenseId = item.dataset.licenseId;
+            const alertType = item.dataset.alertType;
+            const key = `${alertType}-${licenseId}`;
+            
+            if (dismissed.includes(key)) {
+                item.style.display = 'none';
+            } else {
+                visibleCount++;
+            }
+        });
+        
+        // Update counter
+        if (visibleCount === 0) {
+            alertsContainer.style.display = 'none';
+        } else {
+            alertsCounter.textContent = visibleCount;
+        }
+        
+        // Show/hide empty state
+        if (visibleCount === 0 && alertsPanel && !alertsPanel.classList.contains('hidden')) {
+            emptyAlerts.classList.remove('hidden');
+            alertsList.classList.add('hidden');
+        }
+    }
+    
+    // Toggle panel
+    alertsToggle.addEventListener('click', () => {
+        alertsPanel.classList.toggle('hidden');
+    });
+    
+    // Close panel
+    closeAlerts.addEventListener('click', () => {
+        alertsPanel.classList.add('hidden');
+    });
+    
+    // Close on click outside
+    document.addEventListener('click', (e) => {
+        if (!alertsContainer.contains(e.target)) {
+            alertsPanel.classList.add('hidden');
+        }
+    });
+    
+    // Dismiss individual alerts
+    document.querySelectorAll('.dismiss-alert').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const alertItem = btn.closest('.alert-item');
+            const licenseId = alertItem.dataset.licenseId;
+            const alertType = alertItem.dataset.alertType;
+            const key = `${alertType}-${licenseId}`;
+            
+            // Save to localStorage
+            const dismissed = getDismissedAlerts();
+            if (!dismissed.includes(key)) {
+                dismissed.push(key);
+                saveDismissedAlerts(dismissed);
+            }
+            
+            // Animate out
+            alertItem.style.transform = 'translateX(100%)';
+            alertItem.style.opacity = '0';
+            alertItem.style.transition = 'all 0.3s ease';
+            
+            setTimeout(() => {
+                alertItem.style.display = 'none';
+                
+                // Update counter
+                const visibleItems = document.querySelectorAll('.alert-item:not([style*="display: none"])');
+                const count = visibleItems.length;
+                
+                if (count === 0) {
+                    alertsCounter.parentElement.style.display = 'none';
+                    emptyAlerts.classList.remove('hidden');
+                    alertsList.classList.add('hidden');
+                } else {
+                    alertsCounter.textContent = count;
+                }
+            }, 300);
+        });
+    });
+    
+    // Initialize
+    hideDismissedAlerts();
+});
+</script>

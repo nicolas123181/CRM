@@ -1,0 +1,488 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Navbar from "../../components/Navbar.astro";
+import LanguageTabs from "../../components/LanguageTabs.astro";
+import { supabase } from "../../lib/supabase";
+
+const profile = Astro.locals.profile;
+if (!profile) {
+    return Astro.redirect("/login");
+}
+if (profile.role !== "admin") {
+    return Astro.redirect("/rutas");
+}
+
+let errorMessage = "";
+
+// Fetch monumentos for selection
+const { data: monumentos } = await supabase
+    .from("monumentos")
+    .select("id, nombre, imagen_url")
+    .order("nombre");
+
+if (Astro.request.method === "POST") {
+    const formData = await Astro.request.formData();
+    const nombre = formData.get("nombre")?.toString();
+    const descripcion = formData.get("descripcion")?.toString() || null;
+    const duracion_min =
+        parseInt(formData.get("duracion_min")?.toString() || "0") || null;
+    const dificultad = formData.get("dificultad")?.toString() || null;
+    const ordenMonumentosRaw =
+        formData.get("orden_monumentos")?.toString() || "[]";
+
+    // Multi-language fields
+    const nombre_en = formData.get("nombre_en")?.toString() || null;
+    const nombre_de = formData.get("nombre_de")?.toString() || null;
+    const nombre_fr = formData.get("nombre_fr")?.toString() || null;
+    const descripcion_en = formData.get("descripcion_en")?.toString() || null;
+    const descripcion_de = formData.get("descripcion_de")?.toString() || null;
+    const descripcion_fr = formData.get("descripcion_fr")?.toString() || null;
+
+    let orden_monumentos: number[] = [];
+    try {
+        orden_monumentos = JSON.parse(ordenMonumentosRaw);
+    } catch (e) {
+        orden_monumentos = [];
+    }
+
+    if (nombre) {
+        const { error } = await supabase.from("rutas_oficiales").insert({
+            nombre,
+            descripcion,
+            duracion_min,
+            dificultad,
+            orden_monumentos,
+            nombre_en,
+            nombre_de,
+            nombre_fr,
+            descripcion_en,
+            descripcion_de,
+            descripcion_fr,
+        });
+
+        if (error) {
+            errorMessage = error.message;
+        } else {
+            return Astro.redirect("/rutas");
+        }
+    } else {
+        errorMessage = "El nombre es obligatorio.";
+    }
+}
+---
+
+<Layout title="Nueva Ruta Histórica">
+    <Navbar />
+
+    <main class="max-w-3xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div class="animate-fade-in">
+            <!-- Breadcrumb -->
+            <nav class="flex mb-8" aria-label="Breadcrumb">
+                <ol role="list" class="flex items-center space-x-4">
+                    <li>
+                        <a
+                            href="/rutas"
+                            class="text-gray-400 hover:text-gray-500"
+                        >
+                            <svg
+                                class="h-5 w-5"
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                            >
+                                <path
+                                    d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+                                ></path>
+                            </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg
+                                class="h-5 w-5 text-gray-300"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z"
+                                ></path>
+                            </svg>
+                            <a
+                                href="/rutas"
+                                class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700"
+                            >
+                                Rutas Históricas
+                            </a>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg
+                                class="h-5 w-5 text-gray-300"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z"
+                                ></path>
+                            </svg>
+                            <span class="ml-4 text-sm font-medium text-gray-500"
+                                >Nueva Ruta</span
+                            >
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+
+            <div
+                class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden"
+            >
+                <div
+                    class="px-6 py-5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
+                >
+                    <h3
+                        class="text-lg leading-6 font-medium flex items-center gap-2"
+                    >
+                        <span class="text-xl">🗺️</span>
+                        Nueva Ruta Histórica
+                    </h3>
+                    <p class="mt-1 text-sm text-indigo-100">
+                        Crea una nueva ruta oficial con los monumentos que
+                        desees.
+                    </p>
+                </div>
+
+                <form method="POST" class="p-6">
+                    {
+                        errorMessage && (
+                            <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+                                <p class="text-sm text-red-700">
+                                    {errorMessage}
+                                </p>
+                            </div>
+                        )
+                    }
+
+                    <!-- Información Básica -->
+                    <div class="mb-8">
+                        <h4
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                        >
+                            Información de la Ruta
+                        </h4>
+
+                        <div class="space-y-4">
+                            <!-- Language Tabs for name and description -->
+                            <LanguageTabs
+                                prefix="rutas"
+                                fields={[
+                                    {
+                                        name: "nombre",
+                                        label: "Nombre de la Ruta",
+                                        type: "input",
+                                        placeholder:
+                                            "Ej: Ruta del Casco Histórico",
+                                        required: true,
+                                    },
+                                    {
+                                        name: "descripcion",
+                                        label: "Descripción",
+                                        type: "textarea",
+                                        placeholder:
+                                            "Describe brevemente la ruta...",
+                                        rows: 3,
+                                    },
+                                ]}
+                            />
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label
+                                        for="duracion_min"
+                                        class="block text-sm font-medium text-gray-700 mb-1"
+                                    >
+                                        Duración (minutos)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        name="duracion_min"
+                                        id="duracion_min"
+                                        min="0"
+                                        placeholder="Ej: 60"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label
+                                        for="dificultad"
+                                        class="block text-sm font-medium text-gray-700 mb-1"
+                                    >
+                                        Dificultad
+                                    </label>
+                                    <select
+                                        name="dificultad"
+                                        id="dificultad"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                    >
+                                        <option value=""
+                                            >-- Seleccionar --</option
+                                        >
+                                        <option value="Fácil">Fácil</option>
+                                        <option value="Media">Media</option>
+                                        <option value="Difícil">Difícil</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Selección de Monumentos -->
+                <div class="mb-8">
+                    <h4
+                        class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                    >
+                        🏛️ Monumentos de la Ruta
+                    </h4>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Selecciona y ordena los monumentos que componen esta
+                        ruta. Puedes arrastrar para reordenar.
+                    </p>
+
+                    <input
+                        type="hidden"
+                        name="orden_monumentos"
+                        id="orden_monumentos"
+                        value="[]"
+                    />
+
+                    <!-- Available Monuments -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-2"
+                            >
+                                Monumentos Disponibles
+                            </label>
+                            <div
+                                class="border border-gray-200 rounded-lg max-h-80 overflow-y-auto p-2 bg-gray-50"
+                                id="availableMonuments"
+                            >
+                                {
+                                    monumentos?.map((m) => (
+                                        <div
+                                            class="monument-item flex items-center gap-3 p-2 bg-white rounded-lg mb-2 cursor-pointer hover:bg-indigo-50 border border-transparent hover:border-indigo-200 transition-all"
+                                            data-id={m.id}
+                                            data-name={m.nombre}
+                                        >
+                                            {m.imagen_url ? (
+                                                <img
+                                                    src={m.imagen_url}
+                                                    alt={m.nombre}
+                                                    class="w-10 h-10 rounded-lg object-cover"
+                                                />
+                                            ) : (
+                                                <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center text-lg">
+                                                    🏛️
+                                                </div>
+                                            )}
+                                            <span class="text-sm font-medium text-gray-800 flex-1">
+                                                {m.nombre}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                class="add-monument text-indigo-600 hover:text-indigo-800 font-bold text-xl px-2"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    ))
+                                }
+                            </div>
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-2"
+                            >
+                                Monumentos Seleccionados (en orden)
+                            </label>
+                            <div
+                                class="border-2 border-dashed border-indigo-300 rounded-lg min-h-[20rem] p-2 bg-indigo-50/50"
+                                id="selectedMonuments"
+                            >
+                                <p
+                                    class="text-center text-gray-400 text-sm py-8"
+                                    id="emptyMessage"
+                                >
+                                    Haz clic en "+" para añadir monumentos
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <div
+                    class="pt-5 border-t border-gray-100 flex justify-end gap-3"
+                >
+                    <a
+                        href="/rutas"
+                        class="px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                        Cancelar
+                    </a>
+                    <button
+                        type="submit"
+                        class="px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 transition-all hover:-translate-y-0.5"
+                    >
+                        Crear Ruta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+</Layout>
+
+<script is:inline>
+    document.addEventListener("DOMContentLoaded", function () {
+        const availableContainer =
+            document.getElementById("availableMonuments");
+        const selectedContainer = document.getElementById("selectedMonuments");
+        const ordenInput = document.getElementById("orden_monumentos");
+        const emptyMessage = document.getElementById("emptyMessage");
+
+        let selectedMonuments = [];
+
+        function updateOrderInput() {
+            ordenInput.value = JSON.stringify(
+                selectedMonuments.map((m) => m.id),
+            );
+
+            // Show/hide empty message
+            if (selectedMonuments.length === 0) {
+                emptyMessage.style.display = "block";
+            } else {
+                emptyMessage.style.display = "none";
+            }
+        }
+
+        function renderSelected() {
+            // Clear except empty message
+            const items =
+                selectedContainer.querySelectorAll(".selected-monument");
+            items.forEach((item) => item.remove());
+
+            selectedMonuments.forEach((monument, index) => {
+                const div = document.createElement("div");
+                div.className =
+                    "selected-monument flex items-center gap-2 p-3 bg-white rounded-lg mb-2 border border-indigo-200 shadow-sm";
+                div.dataset.id = monument.id;
+                div.dataset.index = index;
+
+                const isFirst = index === 0;
+                const isLast = index === selectedMonuments.length - 1;
+
+                div.innerHTML = `
+                        <span style="display:inline-flex;align-items:center;justify-content:center;min-width:28px;min-height:28px;width:28px;height:28px;background:#4f46e5;color:white;font-weight:bold;font-size:14px;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.2);">${index + 1}</span>
+                        <span class="text-sm font-medium text-gray-800 flex-1">${monument.name}</span>
+                        <div class="flex items-center gap-1">
+                            <button type="button" class="move-up p-1 rounded hover:bg-gray-100 transition-colors ${isFirst ? "opacity-30 cursor-not-allowed" : "text-gray-500 hover:text-indigo-600"}" ${isFirst ? "disabled" : ""} title="Subir">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                                </svg>
+                            </button>
+                            <button type="button" class="move-down p-1 rounded hover:bg-gray-100 transition-colors ${isLast ? "opacity-30 cursor-not-allowed" : "text-gray-500 hover:text-indigo-600"}" ${isLast ? "disabled" : ""} title="Bajar">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                </svg>
+                            </button>
+                            <button type="button" class="remove-monument p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors ml-1" title="Quitar">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                selectedContainer.appendChild(div);
+            });
+
+            updateOrderInput();
+        }
+
+        // Add monument
+        availableContainer.addEventListener("click", (e) => {
+            const addBtn = e.target.closest(".add-monument");
+            if (addBtn) {
+                const item = addBtn.closest(".monument-item");
+                const id = parseInt(item.dataset.id);
+                const name = item.dataset.name;
+
+                // Check if already added
+                if (!selectedMonuments.find((m) => m.id === id)) {
+                    selectedMonuments.push({ id, name });
+                    renderSelected();
+
+                    // Visual feedback
+                    item.classList.add("opacity-50");
+                    addBtn.textContent = "✓";
+                    addBtn.disabled = true;
+                }
+            }
+        });
+
+        // Handle clicks on selected monuments (remove and reorder)
+        selectedContainer.addEventListener("click", (e) => {
+            const removeBtn = e.target.closest(".remove-monument");
+            const moveUpBtn = e.target.closest(".move-up");
+            const moveDownBtn = e.target.closest(".move-down");
+
+            if (removeBtn) {
+                const item = removeBtn.closest(".selected-monument");
+                const id = parseInt(item.dataset.id);
+
+                selectedMonuments = selectedMonuments.filter(
+                    (m) => m.id !== id,
+                );
+                renderSelected();
+
+                // Re-enable in available list
+                const availableItem = availableContainer.querySelector(
+                    `[data-id="${id}"]`,
+                );
+                if (availableItem) {
+                    availableItem.classList.remove("opacity-50");
+                    const addBtn = availableItem.querySelector(".add-monument");
+                    addBtn.textContent = "+";
+                    addBtn.disabled = false;
+                }
+            }
+
+            if (moveUpBtn && !moveUpBtn.disabled) {
+                const item = moveUpBtn.closest(".selected-monument");
+                const index = parseInt(item.dataset.index);
+                if (index > 0) {
+                    [selectedMonuments[index], selectedMonuments[index - 1]] = [
+                        selectedMonuments[index - 1],
+                        selectedMonuments[index],
+                    ];
+                    renderSelected();
+                }
+            }
+
+            if (moveDownBtn && !moveDownBtn.disabled) {
+                const item = moveDownBtn.closest(".selected-monument");
+                const index = parseInt(item.dataset.index);
+                if (index < selectedMonuments.length - 1) {
+                    [selectedMonuments[index], selectedMonuments[index + 1]] = [
+                        selectedMonuments[index + 1],
+                        selectedMonuments[index],
+                    ];
+                    renderSelected();
+                }
+            }
+        });
+    });
+</script>

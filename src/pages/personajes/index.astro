@@ -1,0 +1,186 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Navbar from "../../components/Navbar.astro";
+import { supabase } from "../../lib/supabase";
+
+const profile = Astro.locals.profile;
+if (!profile) {
+    return Astro.redirect("/login");
+}
+const isAdmin = profile.role === "admin";
+
+// Handle delete action
+if (Astro.request.method === "POST" && isAdmin) {
+    const formData = await Astro.request.formData();
+    const action = formData.get("action");
+    const personajeId = formData.get("personajeId");
+
+    if (action === "delete" && personajeId) {
+        const { data: item } = await supabase
+            .from("personajes")
+            .select("audio_url, imagen_url")
+            .eq("id", personajeId)
+            .single();
+
+        // Delete files from bucket
+        if (item?.audio_url) {
+            const audioPath = item.audio_url.split("/PersonajesIlustres/")[1];
+            if (audioPath) {
+                await supabase.storage.from("PersonajesIlustres").remove([audioPath]);
+            }
+        }
+        if (item?.imagen_url) {
+            const imagenPath = item.imagen_url.split("/PersonajesIlustres/")[1];
+            if (imagenPath) {
+                await supabase.storage.from("PersonajesIlustres").remove([imagenPath]);
+            }
+        }
+
+        await supabase.from("personajes").delete().eq("id", personajeId);
+        return Astro.redirect("/personajes");
+    }
+}
+
+// Fetch all personajes
+const { data: personajes, error } = await supabase
+    .from("personajes")
+    .select("*")
+    .order("name", { ascending: true });
+---
+
+<Layout title="Personajes Ilustres">
+    <Navbar />
+
+    <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div class="animate-fade-in">
+            <!-- Header -->
+            <div class="sm:flex sm:items-center sm:justify-between mb-8">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-3">
+                        <span class="text-4xl">👤</span>
+                        Personajes Ilustres
+                    </h1>
+                    <p class="mt-2 text-lg text-gray-600">
+                        Gestiona los personajes históricos de Sanlúcar.
+                    </p>
+                </div>
+                {isAdmin && (
+                    <div class="mt-4 sm:mt-0">
+                        <a
+                            href="/personajes/new"
+                            class="inline-flex items-center px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all hover:-translate-y-0.5"
+                        >
+                            <span class="mr-2 text-lg">➕</span>
+                            Nuevo Personaje
+                        </a>
+                    </div>
+                )}
+            </div>
+
+            <!-- Content Grid -->
+            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden">
+                {error ? (
+                    <div class="p-6">
+                        <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+                            <p class="text-sm text-red-700">
+                                Error al cargar personajes: {error.message}
+                            </p>
+                        </div>
+                    </div>
+                ) : personajes && personajes.length > 0 ? (
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+                        {personajes.map((item: any) => (
+                            <div class="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
+                                <!-- Image -->
+                                <div class="aspect-square bg-gray-100 relative">
+                                    {item.imagen_url ? (
+                                        <img 
+                                            src={item.imagen_url} 
+                                            alt={item.name || "Personaje"} 
+                                            class="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-100 to-purple-200">
+                                            <span class="text-6xl">👤</span>
+                                        </div>
+                                    )}
+                                    {item.audio_url && (
+                                        <div class="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1 text-xs font-medium text-indigo-700">
+                                            🎧 Audio
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <!-- Content -->
+                                <div class="p-4">
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                                        {item.name || "Sin nombre"}
+                                    </h3>
+                                    {item.descripcion && (
+                                        <p class="text-sm text-gray-600 line-clamp-3 mb-3">
+                                            {item.descripcion}
+                                        </p>
+                                    )}
+                                    
+                                    {item.audio_url && (
+                                        <div class="mb-3">
+                                            <audio controls class="w-full h-10" preload="none">
+                                                <source src={item.audio_url} type="audio/mpeg" />
+                                            </audio>
+                                        </div>
+                                    )}
+                                    
+                                    {isAdmin && (
+                                        <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                                            <a
+                                                href={`/personajes/edit/${item.id}`}
+                                                class="px-3 py-1.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                            >
+                                                ✏️ Editar
+                                            </a>
+                                            <form
+                                                method="POST"
+                                                class="inline"
+                                                onsubmit="return confirm('¿Eliminar este personaje?')"
+                                            >
+                                                <input type="hidden" name="action" value="delete" />
+                                                <input type="hidden" name="personajeId" value={item.id} />
+                                                <button
+                                                    type="submit"
+                                                    class="px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                >
+                                                    🗑️ Eliminar
+                                                </button>
+                                            </form>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div class="text-center py-20">
+                        <span class="text-6xl block mb-4">👤</span>
+                        <h3 class="text-lg font-medium text-gray-900">
+                            No hay personajes
+                        </h3>
+                        <p class="mt-1 text-sm text-gray-500">
+                            Comienza añadiendo el primer personaje ilustre.
+                        </p>
+                        {isAdmin && (
+                            <div class="mt-6">
+                                <a
+                                    href="/personajes/new"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+                                >
+                                    <span class="mr-2">➕</span>
+                                    Nuevo Personaje
+                                </a>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    </main>
+</Layout>

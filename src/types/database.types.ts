@@ -24,7 +24,7 @@ export interface Product {
 }
 
 export interface License {
-    id: string;
+    id: number;
     client_id: string;
     product_id: string;
     type: 'licencia_unica' | 'suscripcion';
@@ -32,6 +32,7 @@ export interface License {
     end_date: string | null;
     status: 'activa' | 'inactiva' | 'pendiente_pago';
     created_at: string;
+    establishment_id: number | null;
 }
 
 export interface LicenseWithDetails extends License {
@@ -103,4 +104,37 @@ export interface EstablecimientoFoto {
     es_principal: boolean | null;
     descripcion: string | null;
     created_at: string | null;
+}
+
+export interface RutaOficial {
+    id: number;
+    nombre: string;
+    descripcion: string | null;
+    duracion_min: number | null;
+    dificultad: string | null;
+    orden_monumentos: number[] | null;
+}
+
+export interface Evento {
+    id: number;
+    fecha: string;
+    titulo: string;
+    descripcion: string | null;
+    cultural: number;
+}
+
+export interface Historia {
+    id: number;
+    name: string | null;
+    imagen_url: string | null;
+    audio_url: string | null;
+    descripcion: string | null;
+}
+
+export interface Personaje {
+    id: number;
+    name: string | null;
+    imagen_url: string | null;
+    audio_url: string | null;
+    descripcion: string | null;
 }

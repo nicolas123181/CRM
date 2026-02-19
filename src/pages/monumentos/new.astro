@@ -1,6 +1,7 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import Navbar from "../../components/Navbar.astro";
+import LanguageTabs from "../../components/LanguageTabs.astro";
 import { supabase } from "../../lib/supabase";
 
 let errorMessage = "";
@@ -16,6 +17,17 @@ if (Astro.request.method === "POST") {
     const orden = formData.get("orden")?.toString();
     const horario = formData.get("horario")?.toString() || null;
 
+    // Multi-language fields
+    const nombre_en = formData.get("nombre_en")?.toString() || null;
+    const nombre_de = formData.get("nombre_de")?.toString() || null;
+    const nombre_fr = formData.get("nombre_fr")?.toString() || null;
+    const descripcion_en = formData.get("descripcion_en")?.toString() || null;
+    const descripcion_de = formData.get("descripcion_de")?.toString() || null;
+    const descripcion_fr = formData.get("descripcion_fr")?.toString() || null;
+    const horario_en = formData.get("horario_en")?.toString() || null;
+    const horario_de = formData.get("horario_de")?.toString() || null;
+    const horario_fr = formData.get("horario_fr")?.toString() || null;
+
     if (nombre && latitud && longitud) {
         const { error } = await supabase.from("monumentos").insert([
             {
@@ -27,6 +39,15 @@ if (Astro.request.method === "POST") {
                 longitud: parseFloat(longitud),
                 orden: orden ? parseInt(orden) : 0,
                 horario,
+                nombre_en,
+                nombre_de,
+                nombre_fr,
+                descripcion_en,
+                descripcion_de,
+                descripcion_fr,
+                horario_en,
+                horario_de,
+                horario_fr,
             },
         ]);
 
@@ -133,59 +154,50 @@ if (Astro.request.method === "POST") {
                         )
                     }
 
-                    <!-- Información Básica -->
+                    <!-- Información Básica con Traducciones -->
                     <div class="mb-6">
                         <h4
-                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2"
                         >
-                            Información Básica
+                            🌐 Información Básica y Traducciones
                         </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div class="md:col-span-3">
-                                <label
-                                    for="nombre"
-                                    class="block text-sm font-medium text-gray-700 mb-1"
-                                >
-                                    Nombre <span class="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    name="nombre"
-                                    id="nombre"
-                                    required
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500"
-                                    placeholder="Nombre del monumento"
-                                />
-                            </div>
-                            <div>
-                                <label
-                                    for="orden"
-                                    class="block text-sm font-medium text-gray-700 mb-1"
-                                    >Orden</label
-                                >
-                                <input
-                                    type="number"
-                                    name="orden"
-                                    id="orden"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500"
-                                    placeholder="0"
-                                />
-                            </div>
-                        </div>
-                        <div class="mt-4">
+
+                        <!-- Orden field (no translation needed) -->
+                        <div class="mb-4">
                             <label
-                                for="descripcion"
+                                for="orden"
                                 class="block text-sm font-medium text-gray-700 mb-1"
-                                >Descripción</label
+                                >Orden</label
                             >
-                            <textarea
-                                name="descripcion"
-                                id="descripcion"
-                                rows="3"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500"
-                                placeholder="Descripción del monumento"
-                            ></textarea>
+                            <input
+                                type="number"
+                                name="orden"
+                                id="orden"
+                                class="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500"
+                                placeholder="0"
+                            />
                         </div>
+
+                        <!-- Language Tabs -->
+                        <LanguageTabs
+                            prefix="monumentos"
+                            fields={[
+                                {
+                                    name: "nombre",
+                                    label: "Nombre",
+                                    type: "input",
+                                    placeholder: "Nombre del monumento",
+                                    required: true,
+                                },
+                                {
+                                    name: "descripcion",
+                                    label: "Descripción",
+                                    type: "textarea",
+                                    placeholder: "Descripción del monumento",
+                                    rows: 3,
+                                },
+                            ]}
+                        />
                     </div>
 
                     <!-- Ubicación con Mapa -->
@@ -239,19 +251,24 @@ if (Astro.request.method === "POST") {
                         </div>
                     </div>
 
-                    <!-- Horario -->
+                    <!-- Horario con Traducciones -->
                     <div class="mb-6">
-                        <label
-                            for="horario"
-                            class="block text-sm font-medium text-gray-700 mb-1"
-                            >🕐 Horario</label
+                        <h4
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2"
                         >
-                        <input
-                            type="text"
-                            name="horario"
-                            id="horario"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500"
-                            placeholder="L-V: 9:00-14:00 / 17:00-20:00"
+                            🕐 Horario (multi-idioma)
+                        </h4>
+                        <LanguageTabs
+                            prefix="monumentos_horario"
+                            fields={[
+                                {
+                                    name: "horario",
+                                    label: "Horario",
+                                    type: "input",
+                                    placeholder:
+                                        "L-V: 9:00-14:00 / 17:00-20:00",
+                                },
+                            ]}
                         />
                     </div>
 

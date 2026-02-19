@@ -1,0 +1,185 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Navbar from "../../components/Navbar.astro";
+import { supabase } from "../../lib/supabase";
+
+const profile = Astro.locals.profile;
+if (!profile) {
+    return Astro.redirect("/login");
+}
+const isAdmin = profile.role === "admin";
+
+// Handle delete action
+if (Astro.request.method === "POST" && isAdmin) {
+    const formData = await Astro.request.formData();
+    const action = formData.get("action");
+    const historiaId = formData.get("historiaId");
+
+    if (action === "delete" && historiaId) {
+        // Get the item to delete its files
+        const { data: item } = await supabase
+            .from("historia")
+            .select("audio_url, imagen_url")
+            .eq("id", historiaId)
+            .single();
+
+        // Delete audio from bucket if exists
+        if (item?.audio_url) {
+            const audioPath = item.audio_url.split("/Historia/")[1];
+            if (audioPath) {
+                await supabase.storage.from("Historia").remove([audioPath]);
+            }
+        }
+
+        await supabase.from("historia").delete().eq("id", historiaId);
+        return Astro.redirect("/historia");
+    }
+}
+
+// Fetch all historia items
+const { data: historias, error } = await supabase
+    .from("historia")
+    .select("*")
+    .order("name", { ascending: true });
+---
+
+<Layout title="Descubre Sanlúcar">
+    <Navbar />
+
+    <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div class="animate-fade-in">
+            <!-- Header -->
+            <div class="sm:flex sm:items-center sm:justify-between mb-8">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-3">
+                        <span class="text-4xl">🏰</span>
+                        Descubre Sanlúcar
+                    </h1>
+                    <p class="mt-2 text-lg text-gray-600">
+                        Gestiona el contenido histórico de Sanlúcar con audios e imágenes.
+                    </p>
+                </div>
+                {isAdmin && (
+                    <div class="mt-4 sm:mt-0">
+                        <a
+                            href="/historia/new"
+                            class="inline-flex items-center px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all hover:-translate-y-0.5"
+                        >
+                            <span class="mr-2 text-lg">➕</span>
+                            Nuevo Contenido
+                        </a>
+                    </div>
+                )}
+            </div>
+
+            <!-- Content Grid -->
+            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden">
+                {error ? (
+                    <div class="p-6">
+                        <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+                            <p class="text-sm text-red-700">
+                                Error al cargar contenido: {error.message}
+                            </p>
+                        </div>
+                    </div>
+                ) : historias && historias.length > 0 ? (
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+                        {historias.map((item: any) => (
+                            <div class="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
+                                <!-- Image -->
+                                <div class="aspect-video bg-gray-100 relative">
+                                    {item.imagen_url ? (
+                                        <img 
+                                            src={item.imagen_url} 
+                                            alt={item.name || "Historia"} 
+                                            class="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-amber-100 to-orange-200">
+                                            <span class="text-5xl">🏰</span>
+                                        </div>
+                                    )}
+                                    {/* Audio indicator */}
+                                    {item.audio_url && (
+                                        <div class="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1 text-xs font-medium text-amber-700">
+                                            🎧 Audio disponible
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <!-- Content -->
+                                <div class="p-4">
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                                        {item.name || "Sin título"}
+                                    </h3>
+                                    {item.descripcion && (
+                                        <p class="text-sm text-gray-600 line-clamp-3 mb-3">
+                                            {item.descripcion}
+                                        </p>
+                                    )}
+                                    
+                                    {/* Audio Player */}
+                                    {item.audio_url && (
+                                        <div class="mb-3">
+                                            <audio controls class="w-full h-10" preload="none">
+                                                <source src={item.audio_url} type="audio/mpeg" />
+                                                Tu navegador no soporta audio.
+                                            </audio>
+                                        </div>
+                                    )}
+                                    
+                                    {/* Actions */}
+                                    {isAdmin && (
+                                        <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+                                            <a
+                                                href={`/historia/edit/${item.id}`}
+                                                class="px-3 py-1.5 text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50 rounded-lg transition-colors"
+                                            >
+                                                ✏️ Editar
+                                            </a>
+                                            <form
+                                                method="POST"
+                                                class="inline"
+                                                onsubmit="return confirm('¿Eliminar este contenido?')"
+                                            >
+                                                <input type="hidden" name="action" value="delete" />
+                                                <input type="hidden" name="historiaId" value={item.id} />
+                                                <button
+                                                    type="submit"
+                                                    class="px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                >
+                                                    🗑️ Eliminar
+                                                </button>
+                                            </form>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div class="text-center py-20">
+                        <span class="text-6xl block mb-4">🏰</span>
+                        <h3 class="text-lg font-medium text-gray-900">
+                            No hay contenido histórico
+                        </h3>
+                        <p class="mt-1 text-sm text-gray-500">
+                            Comienza añadiendo la primera historia de Sanlúcar.
+                        </p>
+                        {isAdmin && (
+                            <div class="mt-6">
+                                <a
+                                    href="/historia/new"
+                                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
+                                >
+                                    <span class="mr-2">➕</span>
+                                    Nuevo Contenido
+                                </a>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    </main>
+</Layout>

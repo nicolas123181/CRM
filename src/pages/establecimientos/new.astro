@@ -1,6 +1,7 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import Navbar from "../../components/Navbar.astro";
+import LanguageTabs from "../../components/LanguageTabs.astro";
 import { supabase } from "../../lib/supabase";
 
 let errorMessage = "";
@@ -44,6 +45,17 @@ if (Astro.request.method === "POST") {
         imagenesCarrusel = [];
     }
 
+    // Multi-language fields
+    const nombre_en = formData.get("nombre_en")?.toString() || null;
+    const nombre_de = formData.get("nombre_de")?.toString() || null;
+    const nombre_fr = formData.get("nombre_fr")?.toString() || null;
+    const descripcion_en = formData.get("descripcion_en")?.toString() || null;
+    const descripcion_de = formData.get("descripcion_de")?.toString() || null;
+    const descripcion_fr = formData.get("descripcion_fr")?.toString() || null;
+    const horario_en = formData.get("horario_en")?.toString() || null;
+    const horario_de = formData.get("horario_de")?.toString() || null;
+    const horario_fr = formData.get("horario_fr")?.toString() || null;
+
     if (nombre && latitud && longitud) {
         const { data, error } = await supabase
             .from("establecimientos")
@@ -61,6 +73,15 @@ if (Astro.request.method === "POST") {
                     telefono: telefono ? parseInt(telefono) : null,
                     reservas_url,
                     mensaje_promocional,
+                    nombre_en,
+                    nombre_de,
+                    nombre_fr,
+                    descripcion_en,
+                    descripcion_de,
+                    descripcion_fr,
+                    horario_en,
+                    horario_de,
+                    horario_fr,
                 },
             ])
             .select()
@@ -201,69 +222,59 @@ if (Astro.request.method === "POST") {
                         )
                     }
 
-                    <!-- Sección: Información Básica -->
+                    <!-- Sección: Información Básica con Traducciones -->
                     <div class="mb-8">
                         <h4
-                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2"
                         >
-                            Información Básica
+                            🌐 Información Básica y Traducciones
                         </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="md:col-span-2">
-                                <label
-                                    for="nombre"
-                                    class="block text-sm font-medium text-gray-700 mb-1"
-                                >
-                                    Nombre <span class="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    name="nombre"
-                                    id="nombre"
-                                    required
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                    placeholder="Nombre del establecimiento"
-                                />
-                            </div>
-                            <div>
-                                <label
-                                    for="categoria_id"
-                                    class="block text-sm font-medium text-gray-700 mb-1"
-                                >
-                                    Categoría <span class="text-red-500">*</span
-                                    >
-                                </label>
-                                <select
-                                    name="categoria_id"
-                                    id="categoria_id"
-                                    required
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                >
-                                    {
-                                        categorias?.map((cat) => (
-                                            <option value={cat.id}>
-                                                {cat.nombre}
-                                            </option>
-                                        ))
-                                    }
-                                </select>
-                            </div>
+
+                        <!-- Category selector (not translatable) -->
+                        <div class="mb-4">
+                            <label
+                                for="categoria_id"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                            >
+                                Categoría <span class="text-red-500">*</span>
+                            </label>
+                            <select
+                                name="categoria_id"
+                                id="categoria_id"
+                                required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                            >
+                                {
+                                    categorias?.map((cat) => (
+                                        <option value={cat.id}>
+                                            {cat.nombre}
+                                        </option>
+                                    ))
+                                }
+                            </select>
                         </div>
 
-                        <div class="mt-4">
-                            <label
-                                for="descripcion"
-                                class="block text-sm font-medium text-gray-700 mb-1"
-                                >Descripción</label
-                            >
-                            <textarea
-                                name="descripcion"
-                                id="descripcion"
-                                rows="3"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                placeholder="Descripción del establecimiento"
-                            ></textarea>
-                        </div>
+                        <!-- Language Tabs for nombre and descripcion -->
+                        <LanguageTabs
+                            prefix="establecimientos"
+                            fields={[
+                                {
+                                    name: "nombre",
+                                    label: "Nombre",
+                                    type: "input",
+                                    placeholder: "Nombre del establecimiento",
+                                    required: true,
+                                },
+                                {
+                                    name: "descripcion",
+                                    label: "Descripción",
+                                    type: "textarea",
+                                    placeholder:
+                                        "Descripción del establecimiento",
+                                    rows: 3,
+                                },
+                            ]}
+                        />
                     </div>
 
                     <!-- Sección: Cliente -->
@@ -496,28 +507,33 @@ if (Astro.request.method === "POST") {
                         </div>
                     </div>
 
-                    <!-- Sección: Contacto -->
+                    <!-- Sección: Contacto y Horario -->
                     <div class="mb-8">
                         <h4
                             class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
                         >
                             📞 Contacto y Horario
                         </h4>
+
+                        <!-- Horario with translations -->
+                        <div class="mb-4">
+                            <h5 class="text-xs font-medium text-gray-600 mb-2">
+                                🌐 Horario (multi-idioma)
+                            </h5>
+                            <LanguageTabs
+                                prefix="establecimientos_horario"
+                                fields={[
+                                    {
+                                        name: "horario",
+                                        label: "Horario",
+                                        type: "input",
+                                        placeholder: "L-V: 9:00-21:00",
+                                    },
+                                ]}
+                            />
+                        </div>
+
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label
-                                    for="horario"
-                                    class="block text-sm font-medium text-gray-700 mb-1"
-                                    >Horario</label
-                                >
-                                <input
-                                    type="text"
-                                    name="horario"
-                                    id="horario"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                    placeholder="L-V: 9:00-21:00"
-                                />
-                            </div>
                             <div>
                                 <label
                                     for="telefono"
@@ -532,20 +548,20 @@ if (Astro.request.method === "POST") {
                                     placeholder="956123456"
                                 />
                             </div>
-                        </div>
-                        <div class="mt-4">
-                            <label
-                                for="reservas_url"
-                                class="block text-sm font-medium text-gray-700 mb-1"
-                                >URL de Reservas</label
-                            >
-                            <input
-                                type="url"
-                                name="reservas_url"
-                                id="reservas_url"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                placeholder="https://reservas.ejemplo.com"
-                            />
+                            <div>
+                                <label
+                                    for="reservas_url"
+                                    class="block text-sm font-medium text-gray-700 mb-1"
+                                    >URL de Reservas</label
+                                >
+                                <input
+                                    type="url"
+                                    name="reservas_url"
+                                    id="reservas_url"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                    placeholder="https://reservas.ejemplo.com"
+                                />
+                            </div>
                         </div>
                     </div>
 

@@ -1,0 +1,414 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Navbar from "../../components/Navbar.astro";
+import LanguageTabs from "../../components/LanguageTabs.astro";
+import { supabase } from "../../lib/supabase";
+
+const profile = Astro.locals.profile;
+if (!profile) {
+    return Astro.redirect("/login");
+}
+if (profile.role !== "admin") {
+    return Astro.redirect("/historia");
+}
+
+let errorMessage = "";
+
+if (Astro.request.method === "POST") {
+    const formData = await Astro.request.formData();
+    const name = formData.get("name")?.toString();
+    const descripcion = formData.get("descripcion")?.toString() || null;
+    const imagenFile = formData.get("imagen") as File | null;
+
+    // Audio files for each language
+    const audioFile = formData.get("audio") as File | null;
+    const audioFileEn = formData.get("audio_en") as File | null;
+    const audioFileDe = formData.get("audio_de") as File | null;
+    const audioFileFr = formData.get("audio_fr") as File | null;
+
+    // Multi-language fields
+    const name_en = formData.get("name_en")?.toString() || null;
+    const name_de = formData.get("name_de")?.toString() || null;
+    const name_fr = formData.get("name_fr")?.toString() || null;
+    const descripcion_en = formData.get("descripcion_en")?.toString() || null;
+    const descripcion_de = formData.get("descripcion_de")?.toString() || null;
+    const descripcion_fr = formData.get("descripcion_fr")?.toString() || null;
+
+    if (name) {
+        let imagen_url: string | null = null;
+        let audio_url: string | null = null;
+        let audio_url_en: string | null = null;
+        let audio_url_de: string | null = null;
+        let audio_url_fr: string | null = null;
+
+        // Upload imagen if provided
+        if (imagenFile && imagenFile.size > 0) {
+            const fileExt = imagenFile.name.split(".").pop();
+            const fileName = `img_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+            const { error: uploadError } = await supabase.storage
+                .from("Historia")
+                .upload(fileName, imagenFile, {
+                    cacheControl: "3600",
+                    upsert: false,
+                });
+            if (uploadError) {
+                errorMessage = `Error al subir imagen: ${uploadError.message}`;
+            } else {
+                const { data: urlData } = supabase.storage
+                    .from("Historia")
+                    .getPublicUrl(fileName);
+                imagen_url = urlData.publicUrl;
+            }
+        }
+
+        // Helper function to upload audio
+        async function uploadAudio(
+            file: File | null,
+            langSuffix: string,
+        ): Promise<string | null> {
+            if (file && file.size > 0) {
+                const fileExt = file.name.split(".").pop();
+                const fileName = `audio_${langSuffix}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                const { error: uploadError } = await supabase.storage
+                    .from("Historia")
+                    .upload(fileName, file, {
+                        cacheControl: "3600",
+                        upsert: false,
+                    });
+                if (uploadError) {
+                    throw new Error(
+                        `Error al subir audio (${langSuffix}): ${uploadError.message}`,
+                    );
+                }
+                const { data: urlData } = supabase.storage
+                    .from("Historia")
+                    .getPublicUrl(fileName);
+                return urlData.publicUrl;
+            }
+            return null;
+        }
+
+        if (!errorMessage) {
+            try {
+                audio_url = await uploadAudio(audioFile, "es");
+                audio_url_en = await uploadAudio(audioFileEn, "en");
+                audio_url_de = await uploadAudio(audioFileDe, "de");
+                audio_url_fr = await uploadAudio(audioFileFr, "fr");
+            } catch (e: any) {
+                errorMessage = e.message;
+            }
+        }
+
+        if (!errorMessage) {
+            const { error } = await supabase.from("historia").insert({
+                name,
+                descripcion,
+                imagen_url,
+                audio_url,
+                name_en,
+                name_de,
+                name_fr,
+                descripcion_en,
+                descripcion_de,
+                descripcion_fr,
+                audio_url_en,
+                audio_url_de,
+                audio_url_fr,
+            });
+
+            if (error) {
+                errorMessage = error.message;
+            } else {
+                return Astro.redirect("/historia");
+            }
+        }
+    } else {
+        errorMessage = "El nombre es obligatorio.";
+    }
+}
+---
+
+<Layout title="Nuevo Contenido Histórico">
+    <Navbar />
+
+    <main class="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div class="animate-fade-in">
+            <!-- Breadcrumb -->
+            <nav class="flex mb-8" aria-label="Breadcrumb">
+                <ol role="list" class="flex items-center space-x-4">
+                    <li>
+                        <a
+                            href="/historia"
+                            class="text-gray-400 hover:text-gray-500"
+                        >
+                            <svg
+                                class="h-5 w-5"
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                            >
+                                <path
+                                    d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+                                ></path>
+                            </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg
+                                class="h-5 w-5 text-gray-300"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z"
+                                ></path>
+                            </svg>
+                            <a
+                                href="/historia"
+                                class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700"
+                                >Descubre Sanlúcar</a
+                            >
+                        </div>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg
+                                class="h-5 w-5 text-gray-300"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                            >
+                                <path
+                                    d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z"
+                                ></path>
+                            </svg>
+                            <span class="ml-4 text-sm font-medium text-gray-500"
+                                >Nuevo</span
+                            >
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+
+            <div
+                class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden"
+            >
+                <div
+                    class="px-6 py-5 text-white"
+                    style="background: linear-gradient(to right, #f59e0b, #d97706);"
+                >
+                    <h3
+                        class="text-lg leading-6 font-medium flex items-center gap-2"
+                    >
+                        <span class="text-xl">🏰</span>
+                        Nuevo Contenido Histórico
+                    </h3>
+                    <p
+                        class="mt-1 text-sm"
+                        style="color: rgba(255,255,255,0.8);"
+                    >
+                        Añade una nueva historia de Sanlúcar con imagen y audio.
+                    </p>
+                </div>
+
+                <form
+                    method="POST"
+                    enctype="multipart/form-data"
+                    class="p-6 space-y-6"
+                >
+                    {
+                        errorMessage && (
+                            <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+                                <p class="text-sm text-red-700">
+                                    {errorMessage}
+                                </p>
+                            </div>
+                        )
+                    }
+
+                    <!-- Información Básica con Traducciones -->
+                    <div class="mb-6">
+                        <h4
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2"
+                        >
+                            🌐 Información Básica y Traducciones
+                        </h4>
+                        <LanguageTabs
+                            prefix="historia"
+                            fields={[
+                                {
+                                    name: "name",
+                                    label: "Nombre",
+                                    type: "input",
+                                    placeholder: "Ej: El Castillo de Santiago",
+                                    required: true,
+                                },
+                                {
+                                    name: "descripcion",
+                                    label: "Descripción",
+                                    type: "textarea",
+                                    placeholder:
+                                        "Describe la historia o lugar...",
+                                    rows: 4,
+                                },
+                            ]}
+                            values={{}}
+                        />
+                    </div>
+
+                    <!-- Imagen -->
+                    <div class="mb-6">
+                        <h4
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                        >
+                            📷 Imagen
+                        </h4>
+                        <div
+                            class="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-amber-400 transition-colors"
+                        >
+                            <div class="space-y-1 text-center">
+                                <svg
+                                    class="mx-auto h-12 w-12 text-gray-400"
+                                    stroke="currentColor"
+                                    fill="none"
+                                    viewBox="0 0 48 48"
+                                >
+                                    <path
+                                        d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"></path>
+                                </svg>
+                                <div class="flex text-sm text-gray-600">
+                                    <label
+                                        for="imagen"
+                                        class="relative cursor-pointer bg-white rounded-md font-medium text-amber-600 hover:text-amber-500"
+                                    >
+                                        <span>Subir imagen</span>
+                                        <input
+                                            id="imagen"
+                                            name="imagen"
+                                            type="file"
+                                            accept="image/*"
+                                            class="sr-only"
+                                        />
+                                    </label>
+                                </div>
+                                <p class="text-xs text-gray-500">
+                                    PNG, JPG, WEBP hasta 10MB
+                                </p>
+                            </div>
+                        </div>
+                        <div id="imagenPreview" class="mt-3 hidden">
+                            <p class="text-sm text-gray-600 mb-2">
+                                Vista previa:
+                            </p>
+                            <img
+                                id="imagenPlayer"
+                                class="h-32 w-auto rounded-lg object-cover"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Audios por idioma -->
+                    <div class="mb-6">
+                        <h4
+                            class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
+                        >
+                            🔊 Audioguías por Idioma
+                        </h4>
+
+                        <!-- Audio Español -->
+                        <div class="mb-4 p-4 border border-gray-200 rounded-lg">
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-2"
+                                >🇪🇸 Audio Español</label
+                            >
+                            <input
+                                type="file"
+                                name="audio"
+                                accept="audio/*"
+                                class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
+                            />
+                        </div>
+
+                        <!-- Audio English -->
+                        <div class="mb-4 p-4 border border-gray-200 rounded-lg">
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-2"
+                                >🇬🇧 Audio English</label
+                            >
+                            <input
+                                type="file"
+                                name="audio_en"
+                                accept="audio/*"
+                                class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                            />
+                        </div>
+
+                        <!-- Audio Deutsch -->
+                        <div class="mb-4 p-4 border border-gray-200 rounded-lg">
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-2"
+                                >🇩🇪 Audio Deutsch</label
+                            >
+                            <input
+                                type="file"
+                                name="audio_de"
+                                accept="audio/*"
+                                class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-yellow-50 file:text-yellow-700 hover:file:bg-yellow-100"
+                            />
+                        </div>
+
+                        <!-- Audio Français -->
+                        <div class="mb-4 p-4 border border-gray-200 rounded-lg">
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-2"
+                                >🇫🇷 Audio Français</label
+                            >
+                            <input
+                                type="file"
+                                name="audio_fr"
+                                accept="audio/*"
+                                class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                            />
+                        </div>
+                    </div>
+
+                    <div
+                        class="pt-5 border-t border-gray-100 flex justify-end gap-3"
+                    >
+                        <a
+                            href="/historia"
+                            class="px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                        >
+                            Cancelar
+                        </a>
+                        <button
+                            type="submit"
+                            class="px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 transition-all hover:-translate-y-0.5"
+                        >
+                            Crear Contenido
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script is:inline>
+        document
+            .getElementById("imagen")
+            .addEventListener("change", function (e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const preview = document.getElementById("imagenPreview");
+                    const img = document.getElementById("imagenPlayer");
+                    img.src = URL.createObjectURL(file);
+                    preview.classList.remove("hidden");
+                }
+            });
+    </script>
+</Layout>
