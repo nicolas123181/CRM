@@ -3,6 +3,7 @@ import Layout from "../../../layouts/Layout.astro";
 import Navbar from "../../../components/Navbar.astro";
 import LanguageTabs from "../../../components/LanguageTabs.astro";
 import { supabase } from "../../../lib/supabase";
+import { uploadToCloudinary } from "../../../lib/cloudinary";
 
 const { id } = Astro.params;
 
@@ -16,7 +17,6 @@ if (profile.role !== "admin") {
 
 let errorMessage = "";
 
-// Fetch the item
 const { data: personaje, error: fetchError } = await supabase
     .from("personajes")
     .select("*")
@@ -28,25 +28,31 @@ if (fetchError || !personaje) {
 }
 
 if (Astro.request.method === "POST") {
+    const accessToken = Astro.cookies.get("sb-access-token")?.value;
+    const refreshToken = Astro.cookies.get("sb-refresh-token")?.value;
+    if (accessToken && refreshToken) {
+        await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+        });
+    }
+
     const formData = await Astro.request.formData();
     const name = formData.get("name")?.toString();
     const descripcion = formData.get("descripcion")?.toString() || null;
     const imagenFile = formData.get("imagen") as File | null;
     const deleteImagen = formData.get("delete_imagen") === "true";
 
-    // Audio files for each language
     const audioFile = formData.get("audio") as File | null;
     const audioFileEn = formData.get("audio_en") as File | null;
     const audioFileDe = formData.get("audio_de") as File | null;
     const audioFileFr = formData.get("audio_fr") as File | null;
 
-    // Delete audio checkboxes
     const deleteAudio = formData.get("delete_audio") === "true";
     const deleteAudioEn = formData.get("delete_audio_en") === "true";
     const deleteAudioDe = formData.get("delete_audio_de") === "true";
     const deleteAudioFr = formData.get("delete_audio_fr") === "true";
 
-    // Multi-language fields
     const name_en = formData.get("name_en")?.toString() || null;
     const name_de = formData.get("name_de")?.toString() || null;
     const name_fr = formData.get("name_fr")?.toString() || null;
@@ -62,90 +68,31 @@ if (Astro.request.method === "POST") {
         let audio_url_fr: string | null = personaje.audio_url_fr;
 
         // Delete imagen if requested
-        if (deleteImagen && personaje.imagen_url) {
-            const imagenPath = personaje.imagen_url.split(
-                "/PersonajesIlustres/",
-            )[1];
-            if (imagenPath) {
-                await supabase.storage
-                    .from("PersonajesIlustres")
-                    .remove([imagenPath]);
-            }
+        if (deleteImagen) {
             imagen_url = null;
         }
 
-        // Upload new imagen if provided
+        // Upload new imagen to Cloudinary
         if (imagenFile && imagenFile.size > 0) {
-            if (personaje.imagen_url) {
-                const oldPath = personaje.imagen_url.split(
-                    "/PersonajesIlustres/",
-                )[1];
-                if (oldPath) {
-                    await supabase.storage
-                        .from("PersonajesIlustres")
-                        .remove([oldPath]);
-                }
-            }
-            const fileExt = imagenFile.name.split(".").pop();
-            const fileName = `img_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-            const { error: uploadError } = await supabase.storage
-                .from("PersonajesIlustres")
-                .upload(fileName, imagenFile, {
-                    cacheControl: "3600",
-                    upsert: false,
-                });
-            if (uploadError) {
-                errorMessage = `Error al subir imagen: ${uploadError.message}`;
-            } else {
-                const { data: urlData } = supabase.storage
-                    .from("PersonajesIlustres")
-                    .getPublicUrl(fileName);
-                imagen_url = urlData.publicUrl;
+            try {
+                imagen_url = await uploadToCloudinary(
+                    imagenFile,
+                    "PersonajesIlustres",
+                );
+            } catch (e: any) {
+                errorMessage = `Error al subir imagen: ${e.message}`;
             }
         }
 
-        // Helper function to handle audio uploads/deletes
+        // Handle audio uploads/deletes
         async function handleAudio(
             file: File | null,
             deleteFlag: boolean,
             currentUrl: string | null,
-            langSuffix: string,
         ): Promise<string | null> {
-            if (deleteFlag && currentUrl) {
-                const audioPath = currentUrl.split("/PersonajesIlustres/")[1];
-                if (audioPath) {
-                    await supabase.storage
-                        .from("PersonajesIlustres")
-                        .remove([audioPath]);
-                }
-                return null;
-            }
+            if (deleteFlag) return null;
             if (file && file.size > 0) {
-                if (currentUrl) {
-                    const oldPath = currentUrl.split("/PersonajesIlustres/")[1];
-                    if (oldPath) {
-                        await supabase.storage
-                            .from("PersonajesIlustres")
-                            .remove([oldPath]);
-                    }
-                }
-                const fileExt = file.name.split(".").pop();
-                const fileName = `audio_${langSuffix}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-                const { error: uploadError } = await supabase.storage
-                    .from("PersonajesIlustres")
-                    .upload(fileName, file, {
-                        cacheControl: "3600",
-                        upsert: false,
-                    });
-                if (uploadError) {
-                    throw new Error(
-                        `Error al subir audio (${langSuffix}): ${uploadError.message}`,
-                    );
-                }
-                const { data: urlData } = supabase.storage
-                    .from("PersonajesIlustres")
-                    .getPublicUrl(fileName);
-                return urlData.publicUrl;
+                return await uploadToCloudinary(file, "PersonajesIlustres");
             }
             return currentUrl;
         }
@@ -156,25 +103,21 @@ if (Astro.request.method === "POST") {
                     audioFile,
                     deleteAudio,
                     personaje.audio_url,
-                    "es",
                 );
                 audio_url_en = await handleAudio(
                     audioFileEn,
                     deleteAudioEn,
                     personaje.audio_url_en,
-                    "en",
                 );
                 audio_url_de = await handleAudio(
                     audioFileDe,
                     deleteAudioDe,
                     personaje.audio_url_de,
-                    "de",
                 );
                 audio_url_fr = await handleAudio(
                     audioFileFr,
                     deleteAudioFr,
                     personaje.audio_url_fr,
-                    "fr",
                 );
             } catch (e: any) {
                 errorMessage = e.message;
@@ -218,7 +161,6 @@ if (Astro.request.method === "POST") {
 
     <main class="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div class="animate-fade-in">
-            <!-- Breadcrumb -->
             <nav class="flex mb-8" aria-label="Breadcrumb">
                 <ol role="list" class="flex items-center space-x-4">
                     <li>
@@ -313,7 +255,6 @@ if (Astro.request.method === "POST") {
                         )
                     }
 
-                    <!-- Información Básica con Traducciones -->
                     <div class="mb-6">
                         <h4
                             class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4 flex items-center gap-2"
@@ -351,7 +292,6 @@ if (Astro.request.method === "POST") {
                         />
                     </div>
 
-                    <!-- Imagen -->
                     <div class="mb-6">
                         <h4
                             class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
@@ -434,7 +374,6 @@ if (Astro.request.method === "POST") {
                         </div>
                     </div>
 
-                    <!-- Audios por idioma -->
                     <div class="mb-6">
                         <h4
                             class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4"
@@ -442,7 +381,6 @@ if (Astro.request.method === "POST") {
                             🔊 Audioguías por Idioma
                         </h4>
 
-                        <!-- Audio Español -->
                         <div class="mb-4 p-4 border border-gray-200 rounded-lg">
                             <label
                                 class="block text-sm font-medium text-gray-700 mb-2"
@@ -466,7 +404,7 @@ if (Astro.request.method === "POST") {
                                                 name="delete_audio"
                                                 value="true"
                                                 class="rounded border-gray-300"
-                                            />
+                                            />{" "}
                                             Eliminar audio
                                         </label>
                                     </div>
@@ -480,7 +418,6 @@ if (Astro.request.method === "POST") {
                             />
                         </div>
 
-                        <!-- Audio English -->
                         <div class="mb-4 p-4 border border-gray-200 rounded-lg">
                             <label
                                 class="block text-sm font-medium text-gray-700 mb-2"
@@ -504,7 +441,7 @@ if (Astro.request.method === "POST") {
                                                 name="delete_audio_en"
                                                 value="true"
                                                 class="rounded border-gray-300"
-                                            />
+                                            />{" "}
                                             Eliminar audio
                                         </label>
                                     </div>
@@ -518,7 +455,6 @@ if (Astro.request.method === "POST") {
                             />
                         </div>
 
-                        <!-- Audio Deutsch -->
                         <div class="mb-4 p-4 border border-gray-200 rounded-lg">
                             <label
                                 class="block text-sm font-medium text-gray-700 mb-2"
@@ -542,7 +478,7 @@ if (Astro.request.method === "POST") {
                                                 name="delete_audio_de"
                                                 value="true"
                                                 class="rounded border-gray-300"
-                                            />
+                                            />{" "}
                                             Eliminar audio
                                         </label>
                                     </div>
@@ -556,7 +492,6 @@ if (Astro.request.method === "POST") {
                             />
                         </div>
 
-                        <!-- Audio Français -->
                         <div class="mb-4 p-4 border border-gray-200 rounded-lg">
                             <label
                                 class="block text-sm font-medium text-gray-700 mb-2"
@@ -580,7 +515,7 @@ if (Astro.request.method === "POST") {
                                                 name="delete_audio_fr"
                                                 value="true"
                                                 class="rounded border-gray-300"
-                                            />
+                                            />{" "}
                                             Eliminar audio
                                         </label>
                                     </div>

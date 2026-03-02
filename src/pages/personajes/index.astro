@@ -11,31 +11,20 @@ const isAdmin = profile.role === "admin";
 
 // Handle delete action
 if (Astro.request.method === "POST" && isAdmin) {
+    const accessToken = Astro.cookies.get('sb-access-token')?.value;
+    const refreshToken = Astro.cookies.get('sb-refresh-token')?.value;
+    if (accessToken && refreshToken) {
+        await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+        });
+    }
+
     const formData = await Astro.request.formData();
     const action = formData.get("action");
     const personajeId = formData.get("personajeId");
 
     if (action === "delete" && personajeId) {
-        const { data: item } = await supabase
-            .from("personajes")
-            .select("audio_url, imagen_url")
-            .eq("id", personajeId)
-            .single();
-
-        // Delete files from bucket
-        if (item?.audio_url) {
-            const audioPath = item.audio_url.split("/PersonajesIlustres/")[1];
-            if (audioPath) {
-                await supabase.storage.from("PersonajesIlustres").remove([audioPath]);
-            }
-        }
-        if (item?.imagen_url) {
-            const imagenPath = item.imagen_url.split("/PersonajesIlustres/")[1];
-            if (imagenPath) {
-                await supabase.storage.from("PersonajesIlustres").remove([imagenPath]);
-            }
-        }
-
         await supabase.from("personajes").delete().eq("id", personajeId);
         return Astro.redirect("/personajes");
     }

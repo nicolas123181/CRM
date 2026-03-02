@@ -12,55 +12,27 @@ const searchName = url.searchParams.get("nombre") || "";
 
 // Handle delete action
 if (Astro.request.method === "POST") {
+    const accessToken = Astro.cookies.get("sb-access-token")?.value;
+    const refreshToken = Astro.cookies.get("sb-refresh-token")?.value;
+    if (accessToken && refreshToken) {
+        await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+        });
+    }
+
     const formData = await Astro.request.formData();
     const action = formData.get("action");
     const establecimientoId = formData.get("establecimientoId");
 
     if (action === "delete" && establecimientoId) {
-        // Get the establishment data including images
-        const { data: estData } = await supabase
-            .from("establecimientos")
-            .select("nombre, imagen_url")
-            .eq("id", establecimientoId)
-            .single();
-
-        // Delete main image from Establecimientos bucket
-        if (estData?.imagen_url) {
-            const urlParts = estData.imagen_url.split("/Establecimientos/");
-            if (urlParts[1]) {
-                await supabase.storage
-                    .from("Establecimientos")
-                    .remove([urlParts[1]]);
-            }
-        }
-
-        // Get carousel images from establecimiento_fotos
-        const { data: fotos } = await supabase
+        // Delete carousel foto records
+        await supabase
             .from("establecimiento_fotos")
-            .select("imagen_url")
+            .delete()
             .eq("establecimiento_id", establecimientoId);
 
-        // Delete carousel images from Carruseles bucket
-        if (fotos && fotos.length > 0) {
-            const carouselPaths = fotos
-                .map((f) => {
-                    const parts = f.imagen_url?.split("/Carruseles/");
-                    return parts?.[1] || null;
-                })
-                .filter(Boolean);
-
-            if (carouselPaths.length > 0) {
-                await supabase.storage.from("Carruseles").remove(carouselPaths);
-            }
-
-            // Delete foto records
-            await supabase
-                .from("establecimiento_fotos")
-                .delete()
-                .eq("establecimiento_id", establecimientoId);
-        }
-
-        // Now delete the establishment record
+        // Delete the establishment record
         const { error: deleteError } = await supabase
             .from("establecimientos")
             .delete()

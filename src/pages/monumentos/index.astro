@@ -11,6 +11,16 @@ const searchName = url.searchParams.get("nombre") || "";
 const sortBy = url.searchParams.get("ordenar") || "id"; // Default to ID
 
 if (Astro.request.method === "POST") {
+    // Autenticar la sesión para evitar que RLS bloquee la inserción/actualización
+    const accessToken = Astro.cookies.get('sb-access-token')?.value;
+    const refreshToken = Astro.cookies.get('sb-refresh-token')?.value;
+    if (accessToken && refreshToken) {
+        await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+        });
+    }
+
     const formData = await Astro.request.formData();
     const action = formData.get("action");
     const monumentoId = formData.get("monumentoId");

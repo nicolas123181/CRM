@@ -1,5 +1,13 @@
 import type { APIRoute } from 'astro';
+import { v2 as cloudinary } from 'cloudinary';
 import { supabase } from '../../lib/supabase';
+
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME || 'dqfm8t5bw',
+    api_key: import.meta.env.PUBLIC_CLOUDINARY_API_KEY || '813288167926566',
+    api_secret: import.meta.env.CLOUDINARY_API_SECRET || 'oIoMuDAr-BUaKLcYicNhuKH_LQo'
+});
 
 export const POST: APIRoute = async ({ request, cookies }) => {
     try {
@@ -14,7 +22,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
             });
         }
 
-        // Set the session for this request
+        // Set the session for this request to ensure valid auth
         await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken
@@ -24,7 +32,6 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         const file = formData.get('file') as File;
         const bucket = formData.get('bucket') as string;
         const path = formData.get('path') as string || '';
-        const createBucket = formData.get('createBucket') === 'true';
 
         if (!file || !bucket) {
             return new Response(JSON.stringify({ error: 'Archivo y bucket requeridos' }), {
@@ -41,61 +48,28 @@ export const POST: APIRoute = async ({ request, cookies }) => {
             });
         }
 
-        // Create bucket if needed (for dynamic establishment buckets)
-        if (createBucket) {
-            const { data: buckets } = await supabase.storage.listBuckets();
-            const bucketExists = buckets?.some(b => b.name === bucket);
+        // Convert file to base64
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const base64Data = `data:${file.type};base64,${buffer.toString('base64')}`;
 
-            if (!bucketExists) {
-                const { error: createError } = await supabase.storage.createBucket(bucket, {
-                    public: true,
-                    fileSizeLimit: 52428800 // 50MB
-                });
-
-                if (createError && !createError.message.includes('already exists')) {
-                    return new Response(JSON.stringify({ error: `Error creando bucket: ${createError.message}` }), {
-                        status: 500,
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                }
-            }
-        }
-
-        // Generate unique filename
+        // Get safe name without extension for Cloudinary public_id
         const timestamp = Date.now();
-        const extension = file.name.split('.').pop();
         const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.[^/.]+$/, '');
-        const fileName = `${safeName}_${timestamp}.${extension}`;
+        const fileName = `${safeName}_${timestamp}`;
         const fullPath = path ? `${path}/${fileName}` : fileName;
 
-        // Convert file to buffer
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = new Uint8Array(arrayBuffer);
-
-        // Upload to Supabase Storage
-        const { data, error } = await supabase.storage
-            .from(bucket)
-            .upload(fullPath, buffer, {
-                contentType: file.type,
-                upsert: false
-            });
-
-        if (error) {
-            return new Response(JSON.stringify({ error: `Error subiendo: ${error.message}` }), {
-                status: 500,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-
-        // Get public URL
-        const { data: urlData } = supabase.storage
-            .from(bucket)
-            .getPublicUrl(data.path);
+        // Upload to Cloudinary
+        const uploadResult = await cloudinary.uploader.upload(base64Data, {
+            public_id: fullPath,
+            folder: bucket, // We use the intended "bucket" name as a folder
+            resource_type: "auto"
+        });
 
         return new Response(JSON.stringify({
             success: true,
-            url: urlData.publicUrl,
-            path: data.path,
+            url: uploadResult.secure_url,
+            path: uploadResult.public_id,
             bucket: bucket
         }), {
             status: 200,
@@ -110,3 +84,4 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         });
     }
 };
+

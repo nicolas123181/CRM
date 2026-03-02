@@ -18,30 +18,55 @@ if (fetchError || !parque) {
 }
 
 if (Astro.request.method === "POST") {
+    const accessToken = Astro.cookies.get("sb-access-token")?.value;
+    const refreshToken = Astro.cookies.get("sb-refresh-token")?.value;
+    if (accessToken && refreshToken) {
+        await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+        });
+    } else {
+        console.error("[parques/edit] No hay tokens de sesión en cookies");
+    }
+
     const formData = await Astro.request.formData();
     const nombre = formData.get("nombre")?.toString();
     const imagen_url = formData.get("imagen_url")?.toString() || null;
     const latitud = formData.get("latitud")?.toString();
     const longitud = formData.get("longitud")?.toString();
 
-    // Multi-language fields
     const nombre_en = formData.get("nombre_en")?.toString() || null;
     const nombre_de = formData.get("nombre_de")?.toString() || null;
     const nombre_fr = formData.get("nombre_fr")?.toString() || null;
 
+    console.log(
+        "[parques/edit] Actualizando parque",
+        id,
+        "imagen_url:",
+        imagen_url?.substring(0, 80),
+    );
+
     if (nombre) {
+        const updateData: Record<string, any> = {
+            nombre,
+            latitud: latitud ? parseFloat(latitud) : null,
+            longitud: longitud ? parseFloat(longitud) : null,
+            nombre_en,
+            nombre_de,
+            nombre_fr,
+        };
+
+        // Solo actualizar imagen_url si tiene valor
+        if (imagen_url) {
+            updateData.imagen_url = imagen_url;
+        }
+
         const { error } = await supabase
             .from("parques")
-            .update({
-                nombre,
-                imagen_url,
-                latitud: latitud ? parseFloat(latitud) : null,
-                longitud: longitud ? parseFloat(longitud) : null,
-                nombre_en,
-                nombre_de,
-                nombre_fr,
-            })
+            .update(updateData)
             .eq("id", id);
+
+        console.log("[parques/edit] Resultado:", error ? error.message : "OK");
 
         if (error) {
             errorMessage = error.message;
@@ -135,7 +160,7 @@ if (Astro.request.method === "POST") {
                     </div>
                 </div>
 
-                <form method="POST" class="p-6">
+                <form method="POST" id="parqueForm" class="p-6">
                     {
                         errorMessage && (
                             <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
@@ -153,8 +178,6 @@ if (Astro.request.method === "POST") {
                         >
                             🌐 Nombre y Traducciones
                         </h4>
-
-                        <!-- Language Tabs -->
                         <LanguageTabs
                             prefix="parques"
                             fields={[
@@ -186,7 +209,6 @@ if (Astro.request.method === "POST") {
                             Haz clic en el mapa para cambiar la ubicación
                         </p>
 
-                        <!-- Mapa -->
                         <div
                             id="locationMap"
                             class="h-64 rounded-lg border border-gray-300 z-0"
@@ -195,7 +217,6 @@ if (Astro.request.method === "POST") {
                         >
                         </div>
 
-                        <!-- Coordenadas seleccionadas -->
                         <div class="mt-3 flex items-center gap-4">
                             <div class="flex-1">
                                 <label class="block text-xs text-gray-500 mb-1"
@@ -311,6 +332,7 @@ if (Astro.request.method === "POST") {
                         </a>
                         <button
                             type="submit"
+                            id="submitBtn"
                             class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-green-600 hover:bg-green-700 transition-all hover:-translate-y-0.5"
                         >
                             Guardar Cambios
@@ -328,7 +350,6 @@ if (Astro.request.method === "POST") {
             const lngInput = document.getElementById("longitud");
             const mapContainer = document.getElementById("locationMap");
 
-            // Obtener ubicación actual del parque o usar default
             const currentLat = parseFloat(mapContainer.dataset.lat) || 36.7783;
             const currentLng = parseFloat(mapContainer.dataset.lng) || -6.3448;
 
@@ -341,7 +362,6 @@ if (Astro.request.method === "POST") {
                 attribution: "© OpenStreetMap contributors",
             }).addTo(map);
 
-            // Crear marcador en ubicación actual si existe
             let marker = null;
             if (latInput.value && lngInput.value) {
                 marker = L.marker([currentLat, currentLng], {
@@ -385,6 +405,9 @@ if (Astro.request.method === "POST") {
             const imageUploadStatus =
                 document.getElementById("imageUploadStatus");
             const clearImage = document.getElementById("clearImage");
+            const submitBtn = document.getElementById("submitBtn");
+
+            let isUploading = false;
 
             imageDropZone.addEventListener("click", () => imageFile.click());
             imageDropZone.addEventListener("dragover", (e) => {
@@ -409,12 +432,26 @@ if (Astro.request.method === "POST") {
                 imageUploadStatus.classList.add("hidden");
             });
 
+            // Prevent form submit while uploading
+            document
+                .getElementById("parqueForm")
+                .addEventListener("submit", function (e) {
+                    if (isUploading) {
+                        e.preventDefault();
+                        alert(
+                            "Espera a que se suba la imagen antes de guardar.",
+                        );
+                        return false;
+                    }
+                });
+
             async function handleImageUpload(file) {
                 if (!file.type.startsWith("image/")) {
                     alert("Por favor selecciona una imagen");
                     return;
                 }
 
+                // Show preview immediately
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     imagePreview.src = e.target.result;
@@ -423,6 +460,15 @@ if (Astro.request.method === "POST") {
                     imageDropZone.classList.add("hidden");
                 };
                 reader.readAsDataURL(file);
+
+                // Disable submit while uploading
+                isUploading = true;
+                submitBtn.disabled = true;
+                submitBtn.textContent = "Subiendo imagen...";
+                submitBtn.classList.add("opacity-50");
+                imageUploadStatus.textContent = "⏳ Subiendo imagen...";
+                imageUploadStatus.classList.remove("hidden", "text-green-600");
+                imageUploadStatus.classList.add("text-amber-600");
 
                 const formData = new FormData();
                 formData.append("file", file);
@@ -434,14 +480,32 @@ if (Astro.request.method === "POST") {
                         body: formData,
                     });
                     const result = await response.json();
+                    console.log("[parques/edit] Upload result:", result);
+
                     if (result.success) {
                         imageUrlInput.value = result.url;
-                        imageUploadStatus.classList.remove("hidden");
+                        imageUploadStatus.textContent =
+                            "✓ Nueva imagen subida correctamente";
+                        imageUploadStatus.classList.remove("text-amber-600");
+                        imageUploadStatus.classList.add("text-green-600");
                     } else {
-                        alert("Error: " + result.error);
+                        imageUploadStatus.textContent =
+                            "✕ Error: " + result.error;
+                        imageUploadStatus.classList.remove("text-amber-600");
+                        imageUploadStatus.classList.add("text-red-600");
+                        alert("Error al subir imagen: " + result.error);
                     }
                 } catch (error) {
+                    console.error("[parques/edit] Upload error:", error);
+                    imageUploadStatus.textContent = "✕ Error de conexión";
+                    imageUploadStatus.classList.remove("text-amber-600");
+                    imageUploadStatus.classList.add("text-red-600");
                     alert("Error al subir: " + error.message);
+                } finally {
+                    isUploading = false;
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = "Guardar Cambios";
+                    submitBtn.classList.remove("opacity-50");
                 }
             }
         });

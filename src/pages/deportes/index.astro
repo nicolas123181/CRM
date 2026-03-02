@@ -12,6 +12,16 @@ const searchName = url.searchParams.get("nombre") || "";
 
 // Handle delete action
 if (Astro.request.method === "POST") {
+    // Autenticar la sesión para evitar que RLS bloquee la inserción/actualización
+    const accessToken = Astro.cookies.get('sb-access-token')?.value;
+    const refreshToken = Astro.cookies.get('sb-refresh-token')?.value;
+    if (accessToken && refreshToken) {
+        await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+        });
+    }
+
     const formData = await Astro.request.formData();
     const action = formData.get("action");
     const deporteId = formData.get("deporteId");

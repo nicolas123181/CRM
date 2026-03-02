@@ -1,9 +1,20 @@
 import type { APIRoute } from 'astro';
 import { supabase } from '../../lib/supabase';
+import { uploadToCloudinary, deleteFromCloudinary } from '../../lib/cloudinary';
 
 // Add photo to carousel
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, cookies }) => {
     try {
+        // Authenticate session for RLS
+        const accessToken = cookies.get('sb-access-token')?.value;
+        const refreshToken = cookies.get('sb-refresh-token')?.value;
+        if (accessToken && refreshToken) {
+            await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+            });
+        }
+
         const formData = await request.formData();
         const file = formData.get('file') as File;
         const establecimientoId = formData.get('establecimiento_id') as string;
@@ -18,37 +29,9 @@ export const POST: APIRoute = async ({ request }) => {
             });
         }
 
-        // Use fixed bucket 'Carruseles' with folder path based on establishment name
-        const bucketName = 'Carruseles';
-
-        // Generate filename with folder path
-        const timestamp = Date.now();
-        const extension = file.name.split('.').pop();
+        // Upload to Cloudinary
         const sanitizedFolder = folderName.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s]/g, '').replace(/\s+/g, '_');
-        const fileName = `${sanitizedFolder}/carousel_${timestamp}.${extension}`;
-
-        // Upload file
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = new Uint8Array(arrayBuffer);
-
-        const { data: uploadData, error: uploadError } = await supabase.storage
-            .from(bucketName)
-            .upload(fileName, buffer, {
-                contentType: file.type,
-                upsert: false
-            });
-
-        if (uploadError) {
-            return new Response(JSON.stringify({ error: `Error subiendo: ${uploadError.message}` }), {
-                status: 500,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-
-        // Get public URL
-        const { data: urlData } = supabase.storage
-            .from(bucketName)
-            .getPublicUrl(uploadData.path);
+        const cloudinaryUrl = await uploadToCloudinary(file, `Carruseles/${sanitizedFolder}`);
 
         // Get max orden
         const { data: maxOrden } = await supabase
@@ -74,7 +57,7 @@ export const POST: APIRoute = async ({ request }) => {
             .from('establecimiento_fotos')
             .insert({
                 establecimiento_id: parseInt(establecimientoId),
-                imagen_url: urlData.publicUrl,
+                imagen_url: cloudinaryUrl,
                 orden: newOrden,
                 es_principal: esPrincipal,
                 descripcion: descripcion
@@ -104,9 +87,19 @@ export const POST: APIRoute = async ({ request }) => {
 };
 
 // Delete photo from carousel
-export const DELETE: APIRoute = async ({ request }) => {
+export const DELETE: APIRoute = async ({ request, cookies }) => {
     try {
-        const { id, bucket_name, file_path } = await request.json();
+        // Authenticate session for RLS
+        const accessToken = cookies.get('sb-access-token')?.value;
+        const refreshToken = cookies.get('sb-refresh-token')?.value;
+        if (accessToken && refreshToken) {
+            await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+            });
+        }
+
+        const { id, imagen_url } = await request.json();
 
         if (!id) {
             return new Response(JSON.stringify({ error: 'ID requerido' }), {
@@ -128,9 +121,9 @@ export const DELETE: APIRoute = async ({ request }) => {
             });
         }
 
-        // Optionally delete from storage
-        if (bucket_name && file_path) {
-            await supabase.storage.from(bucket_name).remove([file_path]);
+        // Optionally delete from Cloudinary
+        if (imagen_url) {
+            await deleteFromCloudinary(imagen_url);
         }
 
         return new Response(JSON.stringify({ success: true }), {
@@ -148,8 +141,18 @@ export const DELETE: APIRoute = async ({ request }) => {
 };
 
 // Update photo (set as principal, update orden)
-export const PATCH: APIRoute = async ({ request }) => {
+export const PATCH: APIRoute = async ({ request, cookies }) => {
     try {
+        // Authenticate session for RLS
+        const accessToken = cookies.get('sb-access-token')?.value;
+        const refreshToken = cookies.get('sb-refresh-token')?.value;
+        if (accessToken && refreshToken) {
+            await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+            });
+        }
+
         const { id, establecimiento_id, es_principal, orden, descripcion } = await request.json();
 
         if (!id) {
