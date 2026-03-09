@@ -230,10 +230,34 @@ if (data) {
                                                     </span>
                                                     {mon.audio_url && (
                                                         <span
-                                                            class="text-amber-600"
-                                                            title="Tiene audio"
+                                                            class="text-purple-600"
+                                                            title="Audio ES"
                                                         >
-                                                            🔊
+                                                            🔊ES
+                                                        </span>
+                                                    )}
+                                                    {mon.audio_en && (
+                                                        <span
+                                                            class="text-blue-600"
+                                                            title="Audio EN"
+                                                        >
+                                                            🔊EN
+                                                        </span>
+                                                    )}
+                                                    {mon.audio_de && (
+                                                        <span
+                                                            class="text-yellow-600"
+                                                            title="Audio DE"
+                                                        >
+                                                            🔊DE
+                                                        </span>
+                                                    )}
+                                                    {mon.audio_fr && (
+                                                        <span
+                                                            class="text-red-600"
+                                                            title="Audio FR"
+                                                        >
+                                                            🔊FR
                                                         </span>
                                                     )}
                                                     {clickCountMap[mon.id] >

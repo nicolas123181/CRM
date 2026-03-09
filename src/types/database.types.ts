@@ -93,8 +93,11 @@ export interface Monumento {
     latitud: number;
     longitud: number;
     orden: number | null;
-    horario: string | null;
-}
+      horario: string | null;
+      audio_en: string | null;
+      audio_de: string | null;
+      audio_fr: string | null;
+  }
 
 export interface EstablecimientoFoto {
     id: number;

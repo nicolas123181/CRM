@@ -22,7 +22,10 @@ if (Astro.request.method === "POST") {
     const descripcion = formData.get("descripcion")?.toString() || null;
     const imagen_url = formData.get("imagen_url")?.toString() || null;
     const audio_url = formData.get("audio_url")?.toString() || null;
-    const latitud = formData.get("latitud")?.toString();
+      const audio_en = formData.get("audio_en")?.toString() || null;
+      const audio_de = formData.get("audio_de")?.toString() || null;
+      const audio_fr = formData.get("audio_fr")?.toString() || null;
+      const latitud = formData.get("latitud")?.toString();
     const longitud = formData.get("longitud")?.toString();
     const orden = formData.get("orden")?.toString();
     const horario = formData.get("horario")?.toString() || null;
@@ -43,10 +46,13 @@ if (Astro.request.method === "POST") {
             {
                 nombre,
                 descripcion,
-                imagen_url,
-                audio_url,
-                latitud: parseFloat(latitud),
-                longitud: parseFloat(longitud),
+  imagen_url,
+  audio_url,
+  audio_en,
+  audio_de,
+  audio_fr,
+  latitud: parseFloat(latitud),
+  longitud: parseFloat(longitud),
                 orden: orden ? parseInt(orden) : 0,
                 horario,
                 nombre_en,
@@ -354,67 +360,281 @@ if (Astro.request.method === "POST") {
                             </div>
                         </div>
 
-                        <!-- Audio Upload -->
-                        <div
-                            class="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 transition-colors"
-                        >
-                            <label
-                                class="block text-sm font-medium text-gray-700 mb-2"
-                                >🔊 Audioguía</label
+                        <!-- Audio Upload (Multi-language) -->
+                        <div class="space-y-4">
+                            <!-- Main Audio (ES) -->
+                            <div
+                                class="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 transition-colors"
                             >
-                            <div class="flex items-center gap-4">
-                                <div class="flex-1">
-                                    <input
-                                        type="hidden"
-                                        name="audio_url"
-                                        id="audio_url"
-                                    />
-                                    <div
-                                        id="audioDropZone"
-                                        class="cursor-pointer text-center py-4"
-                                    >
+                                <label
+                                    class="block text-sm font-medium text-gray-700 mb-2"
+                                    >🔊 Audioguía (Español)</label
+                                >
+
+                                <div class="flex items-center gap-4">
+                                    <div class="flex-1">
                                         <input
-                                            type="file"
-                                            id="audioFile"
-                                            accept="audio/*"
-                                            class="hidden"
+                                            type="hidden"
+                                            name="audio_url"
+                                            id="audio_url"
                                         />
-                                        <span class="text-2xl block mb-1"
-                                            >🎵</span
+                                        <div
+                                            id="audioDropZone"
+                                            class="cursor-pointer text-center py-4"
                                         >
-                                        <p class="text-sm text-gray-600">
-                                            Haz clic o arrastra un archivo de
-                                            audio
-                                        </p>
-                                        <p class="text-xs text-gray-400">
-                                            Bucket: Augioguias
-                                        </p>
+                                            <input
+                                                type="file"
+                                                id="audioFile"
+                                                accept="audio/*"
+                                                class="hidden"
+                                            />
+                                            <span class="text-2xl block mb-1"
+                                                >🎵</span
+                                            >
+                                            <p class="text-sm text-gray-600">
+                                                Haz clic o arrastra un archivo
+                                                de audio
+                                            </p>
+                                            <p class="text-xs text-gray-400">
+                                                Bucket: Augioguias
+                                            </p>
+                                        </div>
+                                        <div
+                                            id="audioPreviewContainer"
+                                            class="hidden"
+                                        >
+                                            <audio
+                                                id="audioPreview"
+                                                controls
+                                                class="w-full h-10"
+                                            ></audio>
+                                            <p
+                                                id="audioFileName"
+                                                class="text-xs text-gray-600 mt-1 truncate"
+                                            ></p>
+                                            <button
+                                                type="button"
+                                                id="clearAudio"
+                                                class="text-xs text-red-600 hover:underline"
+                                                >✕ Quitar</button
+                                            >
+                                        </div>
                                     </div>
                                     <div
-                                        id="audioPreviewContainer"
+                                        id="audioUploadStatus"
                                         class="hidden"
                                     >
-                                        <audio
-                                            id="audioPreview"
-                                            controls
-                                            class="w-full h-10"></audio>
-                                        <p
-                                            id="audioFileName"
-                                            class="text-xs text-gray-600 mt-1 truncate"
-                                        >
-                                        </p>
-                                        <button
-                                            type="button"
-                                            id="clearAudio"
-                                            class="text-xs text-red-600 hover:underline"
-                                            >✕ Quitar</button
+                                        <span class="text-green-600 text-sm"
+                                            >✓ Subida</span
                                         >
                                     </div>
                                 </div>
-                                <div id="audioUploadStatus" class="hidden">
-                                    <span class="text-green-600 text-sm"
-                                        >✓ Subida</span
+                            </div>
+
+                            <!-- Audio EN -->
+                            <div
+                                class="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 transition-colors"
+                            >
+                                <label
+                                    class="block text-sm font-medium text-gray-700 mb-2"
+                                    >🔊 Audioguía (English)</label
+                                >
+
+                                <div class="flex items-center gap-4">
+                                    <div class="flex-1">
+                                        <input
+                                            type="hidden"
+                                            name="audio_en"
+                                            id="audio_en"
+                                        />
+                                        <div
+                                            id="audioDropZoneEn"
+                                            class="cursor-pointer text-center py-4"
+                                        >
+                                            <input
+                                                type="file"
+                                                id="audioFileEn"
+                                                accept="audio/*"
+                                                class="hidden"
+                                            />
+                                            <span class="text-2xl block mb-1"
+                                                >🎵</span
+                                            >
+                                            <p class="text-sm text-gray-600">
+                                                Haz clic o arrastra un archivo
+                                                de audio
+                                            </p>
+                                            <p class="text-xs text-gray-400">
+                                                Bucket: Augioguias
+                                            </p>
+                                        </div>
+                                        <div
+                                            id="audioPreviewContainerEn"
+                                            class="hidden"
+                                        >
+                                            <audio
+                                                id="audioPreviewEn"
+                                                controls
+                                                class="w-full h-10"
+                                            ></audio>
+                                            <p
+                                                id="audioFileNameEn"
+                                                class="text-xs text-gray-600 mt-1 truncate"
+                                            ></p>
+                                            <button
+                                                type="button"
+                                                id="clearAudioEn"
+                                                class="text-xs text-red-600 hover:underline"
+                                                >✕ Quitar</button
+                                            >
+                                        </div>
+                                    </div>
+                                    <div
+                                        id="audioUploadStatusEn"
+                                        class="hidden"
                                     >
+                                        <span class="text-green-600 text-sm"
+                                            >✓ Subida</span
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Audio DE -->
+                            <div
+                                class="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-yellow-400 transition-colors"
+                            >
+                                <label
+                                    class="block text-sm font-medium text-gray-700 mb-2"
+                                    >🔊 Audioguía (Deutsch)</label
+                                >
+
+                                <div class="flex items-center gap-4">
+                                    <div class="flex-1">
+                                        <input
+                                            type="hidden"
+                                            name="audio_de"
+                                            id="audio_de"
+                                        />
+                                        <div
+                                            id="audioDropZoneDe"
+                                            class="cursor-pointer text-center py-4"
+                                        >
+                                            <input
+                                                type="file"
+                                                id="audioFileDe"
+                                                accept="audio/*"
+                                                class="hidden"
+                                            />
+                                            <span class="text-2xl block mb-1"
+                                                >🎵</span
+                                            >
+                                            <p class="text-sm text-gray-600">
+                                                Haz clic o arrastra un archivo
+                                                de audio
+                                            </p>
+                                            <p class="text-xs text-gray-400">
+                                                Bucket: Augioguias
+                                            </p>
+                                        </div>
+                                        <div
+                                            id="audioPreviewContainerDe"
+                                            class="hidden"
+                                        >
+                                            <audio
+                                                id="audioPreviewDe"
+                                                controls
+                                                class="w-full h-10"
+                                            ></audio>
+                                            <p
+                                                id="audioFileNameDe"
+                                                class="text-xs text-gray-600 mt-1 truncate"
+                                            ></p>
+                                            <button
+                                                type="button"
+                                                id="clearAudioDe"
+                                                class="text-xs text-red-600 hover:underline"
+                                                >✕ Quitar</button
+                                            >
+                                        </div>
+                                    </div>
+                                    <div
+                                        id="audioUploadStatusDe"
+                                        class="hidden"
+                                    >
+                                        <span class="text-green-600 text-sm"
+                                            >✓ Subida</span
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Audio FR -->
+                            <div
+                                class="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-red-400 transition-colors"
+                            >
+                                <label
+                                    class="block text-sm font-medium text-gray-700 mb-2"
+                                    >🔊 Audioguía (Français)</label
+                                >
+
+                                <div class="flex items-center gap-4">
+                                    <div class="flex-1">
+                                        <input
+                                            type="hidden"
+                                            name="audio_fr"
+                                            id="audio_fr"
+                                        />
+                                        <div
+                                            id="audioDropZoneFr"
+                                            class="cursor-pointer text-center py-4"
+                                        >
+                                            <input
+                                                type="file"
+                                                id="audioFileFr"
+                                                accept="audio/*"
+                                                class="hidden"
+                                            />
+                                            <span class="text-2xl block mb-1"
+                                                >🎵</span
+                                            >
+                                            <p class="text-sm text-gray-600">
+                                                Haz clic o arrastra un archivo
+                                                de audio
+                                            </p>
+                                            <p class="text-xs text-gray-400">
+                                                Bucket: Augioguias
+                                            </p>
+                                        </div>
+                                        <div
+                                            id="audioPreviewContainerFr"
+                                            class="hidden"
+                                        >
+                                            <audio
+                                                id="audioPreviewFr"
+                                                controls
+                                                class="w-full h-10"
+                                            ></audio>
+                                            <p
+                                                id="audioFileNameFr"
+                                                class="text-xs text-gray-600 mt-1 truncate"
+                                            ></p>
+                                            <button
+                                                type="button"
+                                                id="clearAudioFr"
+                                                class="text-xs text-red-600 hover:underline"
+                                                >✕ Quitar</button
+                                            >
+                                        </div>
+                                    </div>
+                                    <div
+                                        id="audioUploadStatusFr"
+                                        class="hidden"
+                                    >
+                                        <span class="text-green-600 text-sm"
+                                            >✓ Subida</span
+                                        >
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -509,10 +729,46 @@ if (Astro.request.method === "POST") {
             );
             const audioPreview = document.getElementById("audioPreview");
             const audioFileName = document.getElementById("audioFileName");
-            const audioUrlInput = document.getElementById("audio_url");
-            const audioUploadStatus =
-                document.getElementById("audioUploadStatus");
-            const clearAudio = document.getElementById("clearAudio");
+              const audioUrlInput = document.getElementById("audio_url");
+              const audioUploadStatus =
+                  document.getElementById("audioUploadStatus");
+              const clearAudio = document.getElementById("clearAudio");
+
+              // Audio EN
+              const audioDropZoneEn = document.getElementById("audioDropZoneEn");
+              const audioFileEn = document.getElementById("audioFileEn");
+              const audioPreviewContainerEn = document.getElementById(
+                  "audioPreviewContainerEn",
+              );
+              const audioPreviewEn = document.getElementById("audioPreviewEn");
+              const audioFileNameEn = document.getElementById("audioFileNameEn");
+              const audioUrlInputEn = document.getElementById("audio_en");
+              const audioUploadStatusEn = document.getElementById("audioUploadStatusEn");
+              const clearAudioEn = document.getElementById("clearAudioEn");
+
+              // Audio DE
+              const audioDropZoneDe = document.getElementById("audioDropZoneDe");
+              const audioFileDe = document.getElementById("audioFileDe");
+              const audioPreviewContainerDe = document.getElementById(
+                  "audioPreviewContainerDe",
+              );
+              const audioPreviewDe = document.getElementById("audioPreviewDe");
+              const audioFileNameDe = document.getElementById("audioFileNameDe");
+              const audioUrlInputDe = document.getElementById("audio_de");
+              const audioUploadStatusDe = document.getElementById("audioUploadStatusDe");
+              const clearAudioDe = document.getElementById("clearAudioDe");
+
+              // Audio FR
+              const audioDropZoneFr = document.getElementById("audioDropZoneFr");
+              const audioFileFr = document.getElementById("audioFileFr");
+              const audioPreviewContainerFr = document.getElementById(
+                  "audioPreviewContainerFr",
+              );
+              const audioPreviewFr = document.getElementById("audioPreviewFr");
+              const audioFileNameFr = document.getElementById("audioFileNameFr");
+              const audioUrlInputFr = document.getElementById("audio_fr");
+              const audioUploadStatusFr = document.getElementById("audioUploadStatusFr");
+              const clearAudioFr = document.getElementById("clearAudioFr");
 
             // Image handlers
             imageDropZone.addEventListener("click", () => imageFile.click());
@@ -608,6 +864,90 @@ if (Astro.request.method === "POST") {
                 audioUploadStatus.classList.add("hidden");
             });
 
+            // Audio EN handlers
+            audioDropZoneEn.addEventListener("click", () => audioFileEn.click());
+            audioDropZoneEn.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                audioDropZoneEn.classList.add("bg-blue-50");
+            });
+            audioDropZoneEn.addEventListener("dragleave", () => {
+                audioDropZoneEn.classList.remove("bg-blue-50");
+            });
+            audioDropZoneEn.addEventListener("drop", (e) => {
+                e.preventDefault();
+                audioDropZoneEn.classList.remove("bg-blue-50");
+                if (e.dataTransfer.files.length) {
+                    handleAudioUploadEn(e.dataTransfer.files[0]);
+                }
+            });
+            audioFileEn.addEventListener("change", (e) => {
+                if (e.target.files.length) {
+                    handleAudioUploadEn(e.target.files[0]);
+                }
+            });
+            clearAudioEn.addEventListener("click", () => {
+                audioUrlInputEn.value = "";
+                audioPreviewContainerEn.classList.add("hidden");
+                audioDropZoneEn.classList.remove("hidden");
+                audioUploadStatusEn.classList.add("hidden");
+            });
+
+            // Audio DE handlers
+            audioDropZoneDe.addEventListener("click", () => audioFileDe.click());
+            audioDropZoneDe.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                audioDropZoneDe.classList.add("bg-yellow-50");
+            });
+            audioDropZoneDe.addEventListener("dragleave", () => {
+                audioDropZoneDe.classList.remove("bg-yellow-50");
+            });
+            audioDropZoneDe.addEventListener("drop", (e) => {
+                e.preventDefault();
+                audioDropZoneDe.classList.remove("bg-yellow-50");
+                if (e.dataTransfer.files.length) {
+                    handleAudioUploadDe(e.dataTransfer.files[0]);
+                }
+            });
+            audioFileDe.addEventListener("change", (e) => {
+                if (e.target.files.length) {
+                    handleAudioUploadDe(e.target.files[0]);
+                }
+            });
+            clearAudioDe.addEventListener("click", () => {
+                audioUrlInputDe.value = "";
+                audioPreviewContainerDe.classList.add("hidden");
+                audioDropZoneDe.classList.remove("hidden");
+                audioUploadStatusDe.classList.add("hidden");
+            });
+
+            // Audio FR handlers
+            audioDropZoneFr.addEventListener("click", () => audioFileFr.click());
+            audioDropZoneFr.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                audioDropZoneFr.classList.add("bg-red-50");
+            });
+            audioDropZoneFr.addEventListener("dragleave", () => {
+                audioDropZoneFr.classList.remove("bg-red-50");
+            });
+            audioDropZoneFr.addEventListener("drop", (e) => {
+                e.preventDefault();
+                audioDropZoneFr.classList.remove("bg-red-50");
+                if (e.dataTransfer.files.length) {
+                    handleAudioUploadFr(e.dataTransfer.files[0]);
+                }
+            });
+            audioFileFr.addEventListener("change", (e) => {
+                if (e.target.files.length) {
+                    handleAudioUploadFr(e.target.files[0]);
+                }
+            });
+            clearAudioFr.addEventListener("click", () => {
+                audioUrlInputFr.value = "";
+                audioPreviewContainerFr.classList.add("hidden");
+                audioDropZoneFr.classList.remove("hidden");
+                audioUploadStatusFr.classList.add("hidden");
+            });
+
             async function handleAudioUpload(file) {
                 if (!file.type.startsWith("audio/")) {
                     alert("Por favor selecciona un archivo de audio");
@@ -634,6 +974,111 @@ if (Astro.request.method === "POST") {
                     if (result.success) {
                         audioUrlInput.value = result.url;
                         audioUploadStatus.classList.remove("hidden");
+                    } else {
+                        alert("Error: " + result.error);
+                    }
+                } catch (error) {
+                    alert("Error al subir: " + error.message);
+                }
+            }
+
+            // Audio EN upload function
+            async function handleAudioUploadEn(file) {
+                if (!file.type.startsWith("audio/")) {
+                    alert("Por favor selecciona un archivo de audio");
+                    return;
+                }
+
+                // Show preview
+                audioPreviewEn.src = URL.createObjectURL(file);
+                audioFileNameEn.textContent = file.name;
+                audioPreviewContainerEn.classList.remove("hidden");
+                audioDropZoneEn.classList.add("hidden");
+
+                // Upload to Supabase
+                const formData = new FormData();
+                formData.append("file", file);
+                formData.append("bucket", "Augioguias");
+
+                try {
+                    const response = await fetch("/api/upload", {
+                        method: "POST",
+                        body: formData,
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        audioUrlInputEn.value = result.url;
+                        audioUploadStatusEn.classList.remove("hidden");
+                    } else {
+                        alert("Error: " + result.error);
+                    }
+                } catch (error) {
+                    alert("Error al subir: " + error.message);
+                }
+            }
+
+            // Audio DE upload function
+            async function handleAudioUploadDe(file) {
+                if (!file.type.startsWith("audio/")) {
+                    alert("Por favor selecciona un archivo de audio");
+                    return;
+                }
+
+                // Show preview
+                audioPreviewDe.src = URL.createObjectURL(file);
+                audioFileNameDe.textContent = file.name;
+                audioPreviewContainerDe.classList.remove("hidden");
+                audioDropZoneDe.classList.add("hidden");
+
+                // Upload to Supabase
+                const formData = new FormData();
+                formData.append("file", file);
+                formData.append("bucket", "Augioguias");
+
+                try {
+                    const response = await fetch("/api/upload", {
+                        method: "POST",
+                        body: formData,
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        audioUrlInputDe.value = result.url;
+                        audioUploadStatusDe.classList.remove("hidden");
+                    } else {
+                        alert("Error: " + result.error);
+                    }
+                } catch (error) {
+                    alert("Error al subir: " + error.message);
+                }
+            }
+
+            // Audio FR upload function
+            async function handleAudioUploadFr(file) {
+                if (!file.type.startsWith("audio/")) {
+                    alert("Por favor selecciona un archivo de audio");
+                    return;
+                }
+
+                // Show preview
+                audioPreviewFr.src = URL.createObjectURL(file);
+                audioFileNameFr.textContent = file.name;
+                audioPreviewContainerFr.classList.remove("hidden");
+                audioDropZoneFr.classList.add("hidden");
+
+                // Upload to Supabase
+                const formData = new FormData();
+                formData.append("file", file);
+                formData.append("bucket", "Augioguias");
+
+                try {
+                    const response = await fetch("/api/upload", {
+                        method: "POST",
+                        body: formData,
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        audioUrlInputFr.value = result.url;
+                        audioUploadStatusFr.classList.remove("hidden");
                     } else {
                         alert("Error: " + result.error);
                     }
