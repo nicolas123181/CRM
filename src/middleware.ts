@@ -6,7 +6,7 @@ const publicRoutes = ['/login'];
 const publicPrefixes = ['/api/auth/', '/_'];
 
 // UUID del admin autorizado para el CRM
-const CRM_ADMIN_UUID = 'f60dd812-cada-4f13-9e5a-841d769f9d8b';
+const CRM_ADMIN_UUID = '180dd566-d013-45ba-b13f-eae84f24e7d2';
 
 export const onRequest = defineMiddleware(async (context, next) => {
     const { pathname } = context.url;
