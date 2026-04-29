@@ -154,6 +154,7 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE licenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS eventos ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
 -- POLÍTICAS: profiles
@@ -283,6 +284,90 @@ CREATE POLICY "Admins can delete licenses"
     ON licenses
     FOR DELETE
     USING (is_admin(auth.uid()));
+
+-- ============================================
+-- POLITICAS: eventos
+-- ============================================
+-- Si existe la tabla "eventos", permitir lectura a usuarios autenticados
+-- y escritura solo a admins.
+
+DO $$
+BEGIN
+    IF to_regclass('public.eventos') IS NOT NULL THEN
+        EXECUTE 'DROP POLICY IF EXISTS "Authenticated users can view eventos" ON eventos';
+        EXECUTE 'CREATE POLICY "Authenticated users can view eventos" ON eventos FOR SELECT USING (auth.uid() IS NOT NULL)';
+
+        EXECUTE 'DROP POLICY IF EXISTS "Admins can insert eventos" ON eventos';
+        EXECUTE 'CREATE POLICY "Admins can insert eventos" ON eventos FOR INSERT WITH CHECK (is_admin(auth.uid()))';
+
+        EXECUTE 'DROP POLICY IF EXISTS "Admins can update eventos" ON eventos';
+        EXECUTE 'CREATE POLICY "Admins can update eventos" ON eventos FOR UPDATE USING (is_admin(auth.uid())) WITH CHECK (is_admin(auth.uid()))';
+
+        EXECUTE 'DROP POLICY IF EXISTS "Admins can delete eventos" ON eventos';
+        EXECUTE 'CREATE POLICY "Admins can delete eventos" ON eventos FOR DELETE USING (is_admin(auth.uid()))';
+    END IF;
+END $$;
+
+-- ============================================
+-- ENDURECIMIENTO GLOBAL DE RLS (TODAS LAS TABLAS PUBLIC)
+-- ============================================
+-- Objetivo:
+-- - Los admins pueden editar todo (INSERT/UPDATE/DELETE) en cualquier tabla public.
+-- - Los no-admin no pueden editar ninguna tabla, aunque exista una policy antigua permisiva.
+-- - Los usuarios autenticados mantienen acceso de lectura.
+--
+-- Este bloque es idempotente: se puede ejecutar varias veces sin problemas.
+
+DO $$
+DECLARE
+    tbl RECORD;
+BEGIN
+    FOR tbl IN
+        SELECT tablename
+        FROM pg_tables
+        WHERE schemaname = 'public'
+    LOOP
+        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', tbl.tablename);
+
+        -- Lectura para usuarios autenticados
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', 'global_read_authenticated', tbl.tablename);
+        EXECUTE format(
+            'CREATE POLICY %I ON public.%I FOR SELECT USING (auth.uid() IS NOT NULL)',
+            'global_read_authenticated',
+            tbl.tablename
+        );
+
+        -- Permisiva de admin para todas las operaciones
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', 'global_admin_all', tbl.tablename);
+        EXECUTE format(
+            'CREATE POLICY %I ON public.%I FOR ALL USING (is_admin(auth.uid())) WITH CHECK (is_admin(auth.uid()))',
+            'global_admin_all',
+            tbl.tablename
+        );
+
+        -- Guards restrictivas de escritura para blindar frente a policies legacy
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', 'global_admin_only_insert_guard', tbl.tablename);
+        EXECUTE format(
+            'CREATE POLICY %I ON public.%I AS RESTRICTIVE FOR INSERT WITH CHECK (is_admin(auth.uid()))',
+            'global_admin_only_insert_guard',
+            tbl.tablename
+        );
+
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', 'global_admin_only_update_guard', tbl.tablename);
+        EXECUTE format(
+            'CREATE POLICY %I ON public.%I AS RESTRICTIVE FOR UPDATE USING (is_admin(auth.uid())) WITH CHECK (is_admin(auth.uid()))',
+            'global_admin_only_update_guard',
+            tbl.tablename
+        );
+
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', 'global_admin_only_delete_guard', tbl.tablename);
+        EXECUTE format(
+            'CREATE POLICY %I ON public.%I AS RESTRICTIVE FOR DELETE USING (is_admin(auth.uid()))',
+            'global_admin_only_delete_guard',
+            tbl.tablename
+        );
+    END LOOP;
+END $$;
 
 -- ============================================
 -- PARTE 3: SEED DATA (OPCIONAL)
