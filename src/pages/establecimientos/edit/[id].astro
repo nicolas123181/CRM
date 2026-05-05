@@ -944,9 +944,10 @@ const est = establecimiento;
             });
 
             async function handleCarouselUpload(files) {
-                const nombreEstablecimiento = document
-                    .getElementById("nombre")
-                    .value.trim();
+                const nombreInput =
+                    document.getElementById("establecimientos_edit_nombre") ||
+                    document.querySelector('[name="nombre"]');
+                const nombreEstablecimiento = nombreInput?.value.trim() || "";
                 if (!nombreEstablecimiento) {
                     alert(
                         "Por favor, verifica que el nombre del establecimiento esté correcto",

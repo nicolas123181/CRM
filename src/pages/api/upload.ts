@@ -2,12 +2,20 @@ import type { APIRoute } from 'astro';
 import { v2 as cloudinary } from 'cloudinary';
 import { supabase } from '../../lib/supabase';
 
+const cloudinaryCloudName = import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME;
+const cloudinaryApiKey = import.meta.env.PUBLIC_CLOUDINARY_API_KEY;
+const cloudinaryApiSecret = import.meta.env.CLOUDINARY_API_SECRET;
+
 // Configure Cloudinary
 cloudinary.config({
-    cloud_name: import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME || 'dqfm8t5bw',
-    api_key: import.meta.env.PUBLIC_CLOUDINARY_API_KEY || '813288167926566',
-    api_secret: import.meta.env.CLOUDINARY_API_SECRET || 'oIoMuDAr-BUaKLcYicNhuKH_LQo'
+    cloud_name: cloudinaryCloudName,
+    api_key: cloudinaryApiKey,
+    api_secret: cloudinaryApiSecret
 });
+
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : 'Error desconocido';
+}
 
 export const POST: APIRoute = async ({ request, cookies }) => {
     try {
@@ -36,6 +44,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         if (!file || !bucket) {
             return new Response(JSON.stringify({ error: 'Archivo y bucket requeridos' }), {
                 status: 400,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        if (!cloudinaryCloudName || !cloudinaryApiKey || !cloudinaryApiSecret) {
+            return new Response(JSON.stringify({ error: 'Faltan variables de Cloudinary en .env' }), {
+                status: 500,
                 headers: { 'Content-Type': 'application/json' }
             });
         }
@@ -78,7 +93,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
     } catch (error) {
         console.error('Upload error:', error);
-        return new Response(JSON.stringify({ error: 'Error interno del servidor' }), {
+        return new Response(JSON.stringify({ error: `Error subiendo imagen: ${getErrorMessage(error)}` }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });

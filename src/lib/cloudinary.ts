@@ -1,10 +1,14 @@
 import { v2 as cloudinary } from 'cloudinary';
 
+const cloudinaryCloudName = import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME;
+const cloudinaryApiKey = import.meta.env.PUBLIC_CLOUDINARY_API_KEY;
+const cloudinaryApiSecret = import.meta.env.CLOUDINARY_API_SECRET;
+
 // Configure Cloudinary (runs once on import)
 cloudinary.config({
-    cloud_name: import.meta.env.PUBLIC_CLOUDINARY_CLOUD_NAME || 'dqfm8t5bw',
-    api_key: import.meta.env.PUBLIC_CLOUDINARY_API_KEY || '813288167926566',
-    api_secret: import.meta.env.CLOUDINARY_API_SECRET || 'oIoMuDAr-BUaKLcYicNhuKH_LQo'
+    cloud_name: cloudinaryCloudName,
+    api_key: cloudinaryApiKey,
+    api_secret: cloudinaryApiSecret
 });
 
 /**
@@ -14,6 +18,10 @@ cloudinary.config({
  * @returns The secure URL of the uploaded file
  */
 export async function uploadToCloudinary(file: File, folder: string): Promise<string> {
+    if (!cloudinaryCloudName || !cloudinaryApiKey || !cloudinaryApiSecret) {
+        throw new Error('Faltan variables de Cloudinary en .env');
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const base64Data = `data:${file.type};base64,${buffer.toString('base64')}`;

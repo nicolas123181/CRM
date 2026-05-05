@@ -800,9 +800,10 @@ if (Astro.request.method === "POST") {
 
             async function handleCarouselUpload(files) {
                 // Verificar que el nombre del establecimiento esté definido
-                const nombreEstablecimiento = document
-                    .getElementById("nombre")
-                    .value.trim();
+                const nombreInput =
+                    document.getElementById("establecimientos_nombre") ||
+                    document.querySelector('[name="nombre"]');
+                const nombreEstablecimiento = nombreInput?.value.trim() || "";
                 if (!nombreEstablecimiento) {
                     alert(
                         "Por favor, ingresa primero el nombre del establecimiento",
