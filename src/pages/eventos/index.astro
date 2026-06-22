@@ -117,6 +117,13 @@ const formatDate = (dateStr: string) => {
                                                 
                                                 <!-- Event Info -->
                                                 <div class="flex-1 min-w-0">
+                                                    {evento.imagen_url && (
+                                                        <img
+                                                            src={evento.imagen_url}
+                                                            alt={evento.titulo}
+                                                            class="mb-3 h-32 w-full max-w-sm rounded-lg object-cover border border-gray-200"
+                                                        />
+                                                    )}
                                                     <h3 class="text-lg font-semibold text-gray-900">
                                                         {evento.titulo}
                                                     </h3>

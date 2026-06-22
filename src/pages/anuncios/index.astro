@@ -1,0 +1,160 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Navbar from "../../components/Navbar.astro";
+import { supabase } from "../../lib/supabase";
+import type { AnuncioPopupWithDetails } from "../../types/database.types";
+
+let actionError = "";
+const url = new URL(Astro.request.url);
+const searchTitle = url.searchParams.get("titulo") || "";
+
+if (Astro.request.method === "POST") {
+    const accessToken = Astro.cookies.get("sb-access-token")?.value;
+    const refreshToken = Astro.cookies.get("sb-refresh-token")?.value;
+    if (accessToken && refreshToken) {
+        await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+        });
+    }
+
+    const formData = await Astro.request.formData();
+    const action = formData.get("action");
+    const anuncioId = formData.get("anuncioId");
+
+    if (action === "delete" && anuncioId) {
+        const { error: deleteError } = await supabase
+            .from("anuncio_popup")
+            .delete()
+            .eq("id", anuncioId);
+
+        if (deleteError) {
+            actionError = `Error al eliminar el anuncio: ${deleteError.message}`;
+        } else {
+            return Astro.redirect("/anuncios");
+        }
+    }
+}
+
+let query = supabase
+    .from("anuncio_popup")
+    .select("*, establecimientos(nombre)")
+    .order("created_at", { ascending: false });
+
+if (searchTitle) {
+    query = query.ilike("titulo", `%${searchTitle}%`);
+}
+
+const { data: anuncios, error } = await query;
+---
+
+<Layout title="Anuncios">
+    <Navbar />
+
+    <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div class="animate-fade-in">
+            <div class="sm:flex sm:items-center sm:justify-between mb-8">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 tracking-tight">
+                        Anuncios
+                    </h1>
+                    <p class="mt-2 text-lg text-gray-600">
+                        Gestiona los popups de la app.
+                    </p>
+                </div>
+                <a
+                    href="/anuncios/new"
+                    class="mt-4 sm:mt-0 inline-flex items-center px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
+                >
+                    <span class="mr-2 text-lg">+</span>
+                    Nuevo Anuncio
+                </a>
+            </div>
+
+            <form method="GET" class="mb-6 max-w-xl">
+                <label for="titulo" class="block text-sm font-medium text-gray-700 mb-1">
+                    Buscar por titulo
+                </label>
+                <div class="flex gap-2">
+                    <input
+                        type="text"
+                        name="titulo"
+                        id="titulo"
+                        value={searchTitle}
+                        placeholder="Titulo"
+                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    />
+                    <button type="submit" class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
+                        Buscar
+                    </button>
+                    {searchTitle && (
+                        <a href="/anuncios" class="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50">
+                            Limpiar
+                        </a>
+                    )}
+                </div>
+            </form>
+
+            {actionError && (
+                <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+                    <p class="text-sm text-red-700">{actionError}</p>
+                </div>
+            )}
+
+            {error ? (
+                <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+                    <p class="text-sm text-red-700">
+                        Error al cargar anuncios: {error.message}
+                    </p>
+                </div>
+            ) : anuncios && anuncios.length > 0 ? (
+                <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {(anuncios as AnuncioPopupWithDetails[]).map((anuncio) => (
+                        <article class="bg-white rounded-xl shadow-sm ring-1 ring-gray-900/5 overflow-hidden">
+                            {anuncio.imagen_url ? (
+                                <img src={anuncio.imagen_url} alt={anuncio.titulo} class="w-full h-40 object-cover" />
+                            ) : (
+                                <div class="h-40 bg-slate-100 flex items-center justify-center text-5xl">
+                                    📢
+                                </div>
+                            )}
+                            <div class="p-5">
+                                <h2 class="text-lg font-semibold text-gray-900">{anuncio.titulo}</h2>
+                                {anuncio.descripcion && (
+                                    <p class="mt-2 text-sm text-gray-600 line-clamp-3">{anuncio.descripcion}</p>
+                                )}
+                                <p class="mt-3 text-sm text-gray-500">
+                                    Local: {anuncio.establecimientos?.nombre || "General"}
+                                </p>
+                                <div class="mt-4 pt-4 border-t border-gray-100 flex justify-between text-xs text-gray-500">
+                                    <span>ID: {anuncio.id}</span>
+                                    <div class="flex gap-2">
+                                        <a href={`/anuncios/edit/${anuncio.id}`} class="text-blue-600 hover:text-blue-800 font-medium">
+                                            Editar
+                                        </a>
+                                        <form method="POST" onsubmit="return confirm('¿Eliminar este anuncio?')">
+                                            <input type="hidden" name="action" value="delete" />
+                                            <input type="hidden" name="anuncioId" value={anuncio.id} />
+                                            <button type="submit" class="text-red-600 hover:text-red-800 font-medium">
+                                                Eliminar
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    ))}
+                </div>
+            ) : (
+                <div class="text-center py-20 bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5">
+                    <div class="text-6xl mb-4">📢</div>
+                    <h3 class="text-lg font-medium text-gray-900">No hay anuncios</h3>
+                    <p class="mt-1 text-sm text-gray-500">Crea el primer popup.</p>
+                    <a href="/anuncios/new" class="mt-6 inline-flex items-center px-4 py-2 rounded-md text-white bg-primary-600 hover:bg-primary-700">
+                        Nuevo Anuncio
+                    </a>
+                </div>
+            )}
+        </div>
+    </main>
+</Layout>

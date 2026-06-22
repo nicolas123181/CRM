@@ -8,7 +8,8 @@ const cloudinaryApiSecret = import.meta.env.CLOUDINARY_API_SECRET;
 cloudinary.config({
     cloud_name: cloudinaryCloudName,
     api_key: cloudinaryApiKey,
-    api_secret: cloudinaryApiSecret
+    api_secret: cloudinaryApiSecret,
+    timeout: 120000,
 });
 
 /**
@@ -24,19 +25,29 @@ export async function uploadToCloudinary(file: File, folder: string): Promise<st
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const base64Data = `data:${file.type};base64,${buffer.toString('base64')}`;
 
     const timestamp = Date.now();
     const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.[^/.]+$/, '');
     const fileName = `${safeName}_${timestamp}`;
+    return await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+            {
+                public_id: fileName,
+                folder,
+                resource_type: "auto",
+                timeout: 120000,
+            },
+            (error, result) => {
+                if (error) {
+                    reject(error);
+                    return;
+                }
+                resolve(result?.secure_url || '');
+            },
+        );
 
-    const uploadResult = await cloudinary.uploader.upload(base64Data, {
-        public_id: fileName,
-        folder: folder,
-        resource_type: "auto"
+        uploadStream.end(buffer);
     });
-
-    return uploadResult.secure_url;
 }
 
 /**

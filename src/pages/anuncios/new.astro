@@ -1,0 +1,192 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Navbar from "../../components/Navbar.astro";
+import { supabase } from "../../lib/supabase";
+import { uploadToCloudinary } from "../../lib/cloudinary";
+
+let errorMessage = "";
+
+const { data: establecimientos } = await supabase
+    .from("establecimientos")
+    .select("id, nombre")
+    .order("nombre", { ascending: true });
+
+if (Astro.request.method === "POST") {
+    const accessToken = Astro.cookies.get("sb-access-token")?.value;
+    const refreshToken = Astro.cookies.get("sb-refresh-token")?.value;
+    if (accessToken && refreshToken) {
+        await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+        });
+    }
+
+    const formData = await Astro.request.formData();
+    const titulo = formData.get("titulo")?.toString();
+    const descripcion = formData.get("descripcion")?.toString() || null;
+    const imagenFile = formData.get("imagen") as File | null;
+    const establecimientoValue = formData.get("establecimiento_id")?.toString();
+    const establecimiento_id = establecimientoValue ? Number(establecimientoValue) : null;
+
+    if (titulo) {
+        let imagen_url: string | null = null;
+
+        if (imagenFile && imagenFile.size > 0) {
+            try {
+                imagen_url = await uploadToCloudinary(imagenFile, "anuncios");
+            } catch (e: any) {
+                errorMessage = `Error al subir imagen: ${e.message || "Error desconocido"}`;
+            }
+        }
+
+        if (errorMessage) {
+            return;
+        }
+
+        const { error } = await supabase.from("anuncio_popup").insert({
+            titulo,
+            descripcion,
+            imagen_url,
+            establecimiento_id,
+        });
+
+        if (error) {
+            errorMessage = error.message;
+        } else {
+            return Astro.redirect("/anuncios");
+        }
+    } else {
+        errorMessage = "El titulo es obligatorio.";
+    }
+}
+---
+
+<Layout title="Nuevo Anuncio">
+    <Navbar />
+
+    <main class="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden">
+            <div class="px-6 py-5 bg-blue-50 border-b border-blue-100">
+                <h1 class="text-lg font-medium text-gray-900">Nuevo Anuncio</h1>
+                <p class="text-sm text-gray-500">Popup para app.</p>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data" class="p-6 space-y-6" id="anuncioForm">
+                {errorMessage && (
+                    <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+                        <p class="text-sm text-red-700">{errorMessage}</p>
+                    </div>
+                )}
+
+                <div>
+                    <label for="titulo" class="block text-sm font-medium text-gray-700 mb-1">
+                        Titulo <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="titulo" id="titulo" required class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500" />
+                </div>
+
+                <div>
+                    <label for="descripcion" class="block text-sm font-medium text-gray-700 mb-1">
+                        Descripcion
+                    </label>
+                    <textarea name="descripcion" id="descripcion" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"></textarea>
+                </div>
+
+                <div>
+                    <label for="establecimiento_id" class="block text-sm font-medium text-gray-700 mb-1">
+                        Establecimiento
+                    </label>
+                    <select name="establecimiento_id" id="establecimiento_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white focus:ring-primary-500 focus:border-primary-500">
+                        <option value="">General / sin local</option>
+                        {establecimientos?.map((establecimiento: any) => (
+                            <option value={establecimiento.id}>{establecimiento.nombre}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div>
+                    <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">Imagen</h2>
+                    <div class="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 transition-colors">
+                        <div id="imageDropZone" class="cursor-pointer text-center py-4">
+                            <input type="file" id="imageFile" name="imagen" accept="image/*" class="hidden" />
+                            <span class="text-3xl block mb-2">📁</span>
+                            <p class="text-sm text-gray-600">Haz clic o arrastra una imagen</p>
+                            <p class="text-xs text-gray-400">Bucket: anuncios</p>
+                        </div>
+                        <div id="imagePreviewContainer" class="hidden">
+                            <img id="imagePreview" class="w-full h-40 object-cover rounded-lg" />
+                            <div class="flex justify-between items-center mt-2">
+                                <p id="imageFileName" class="text-xs text-gray-600 truncate flex-1"></p>
+                                <button type="button" id="clearImage" class="text-xs text-red-600 hover:underline ml-2">Quitar</button>
+                            </div>
+                            <div id="imageUploadStatus" class="hidden text-xs mt-1"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-5 border-t border-gray-100 flex justify-end gap-3">
+                    <a href="/anuncios" class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">Cancelar</a>
+                    <button type="submit" id="submitBtn" class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">Guardar Anuncio</button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script is:inline>
+        document.addEventListener("DOMContentLoaded", function () {
+            const imageDropZone = document.getElementById("imageDropZone");
+            const imageFile = document.getElementById("imageFile");
+            const imagePreviewContainer = document.getElementById("imagePreviewContainer");
+            const imagePreview = document.getElementById("imagePreview");
+            const imageFileName = document.getElementById("imageFileName");
+            const imageUploadStatus = document.getElementById("imageUploadStatus");
+            const clearImage = document.getElementById("clearImage");
+            const submitBtn = document.getElementById("submitBtn");
+
+            imageDropZone.addEventListener("click", () => imageFile.click());
+            imageDropZone.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                imageDropZone.classList.add("bg-blue-50");
+            });
+            imageDropZone.addEventListener("dragleave", () => imageDropZone.classList.remove("bg-blue-50"));
+            imageDropZone.addEventListener("drop", (e) => {
+                e.preventDefault();
+                imageDropZone.classList.remove("bg-blue-50");
+                if (e.dataTransfer.files.length) handleImageUpload(e.dataTransfer.files[0]);
+            });
+            imageFile.addEventListener("change", (e) => {
+                if (e.target.files.length) handleImageUpload(e.target.files[0]);
+            });
+            clearImage.addEventListener("click", () => {
+                imageFile.value = "";
+                imagePreviewContainer.classList.add("hidden");
+                imageDropZone.classList.remove("hidden");
+                imageUploadStatus.classList.add("hidden");
+            });
+            document.getElementById("anuncioForm").addEventListener("submit", (e) => {
+                submitBtn.disabled = true;
+                submitBtn.textContent = "Guardando...";
+                submitBtn.classList.add("opacity-50");
+            });
+
+            async function handleImageUpload(file) {
+                if (!file.type.startsWith("image/")) {
+                    alert("Por favor selecciona una imagen");
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                    imageFileName.textContent = file.name;
+                    imagePreviewContainer.classList.remove("hidden");
+                    imageDropZone.classList.add("hidden");
+                };
+                reader.readAsDataURL(file);
+
+                imageUploadStatus.textContent = "Imagen lista. Se subira al guardar.";
+                imageUploadStatus.className = "text-green-600 text-xs mt-1";
+            }
+        });
+    </script>
+</Layout>

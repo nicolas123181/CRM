@@ -124,6 +124,27 @@ export interface Evento {
     titulo: string;
     descripcion: string | null;
     cultural: number;
+    titulo_en?: string | null;
+    titulo_de?: string | null;
+    titulo_fr?: string | null;
+    descripcion_en?: string | null;
+    descripcion_de?: string | null;
+    descripcion_fr?: string | null;
+    imagen_url?: string | null;
+    destacado_nivel: number;
+}
+
+export interface AnuncioPopup {
+    id: number;
+    titulo: string;
+    descripcion: string | null;
+    imagen_url: string | null;
+    establecimiento_id: number | null;
+    created_at: string;
+}
+
+export interface AnuncioPopupWithDetails extends AnuncioPopup {
+    establecimientos: Pick<Establecimiento, 'nombre'> | null;
 }
 
 export interface Historia {
