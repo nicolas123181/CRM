@@ -18,12 +18,18 @@ if (profile.role !== "admin") {
 let errorMessage = "";
 
 // Fetch the event (only if cultural = 0)
-const { data: evento, error: fetchError } = await supabase
-    .from("eventos")
-    .select("*")
-    .eq("id", id)
-    .eq("cultural", 0)
-    .single();
+const [{ data: evento, error: fetchError }, { data: establecimientos }] = await Promise.all([
+    supabase
+        .from("eventos")
+        .select("*")
+        .eq("id", id)
+        .eq("cultural", 0)
+        .single(),
+    supabase
+        .from("establecimientos")
+        .select("id, nombre")
+        .order("nombre", { ascending: true }),
+]);
 
 if (fetchError || !evento) {
     return Astro.redirect("/eventos");
@@ -50,6 +56,8 @@ if (Astro.request.method === "POST") {
     const descripcion = formData.get("descripcion")?.toString() || null;
     const fecha = formData.get("fecha")?.toString();
     const hora = formData.get("hora")?.toString() || "12:00";
+    const establecimientoValue = formData.get("establecimiento_id")?.toString();
+    const establecimiento_id = establecimientoValue ? Number(establecimientoValue) : null;
     const destacadoNivelValue = Number(formData.get("destacado_nivel") || 0);
     const destacado_nivel = [0, 1, 2].includes(destacadoNivelValue)
         ? destacadoNivelValue
@@ -91,6 +99,7 @@ if (Astro.request.method === "POST") {
                     descripcion_fr,
                     imagen_url,
                     destacado_nivel,
+                    establecimiento_id,
                 })
                 .eq("id", id);
 
@@ -334,6 +343,29 @@ if (Astro.request.method === "POST") {
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
                             />
                         </div>
+                    </div>
+
+                    <div>
+                        <label
+                            for="establecimiento_id"
+                            class="block text-sm font-medium text-gray-700 mb-1"
+                        >
+                            Establecimiento
+                        </label>
+                        <select
+                            name="establecimiento_id"
+                            id="establecimiento_id"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500 bg-white"
+                        >
+                            <option value="" selected={!evento.establecimiento_id}>
+                                Sin establecimiento / en la calle
+                            </option>
+                            {establecimientos?.map((establecimiento: any) => (
+                                <option value={establecimiento.id} selected={evento.establecimiento_id === establecimiento.id}>
+                                    {establecimiento.nombre}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     <div>

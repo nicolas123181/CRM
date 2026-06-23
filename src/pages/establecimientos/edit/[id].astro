@@ -668,7 +668,13 @@ const est = establecimiento;
                             <LanguageTabs 
                                 prefix="establecimientos_edit_horario"
                                 fields={[
-                                    { name: "horario", label: "Horario", type: "input", placeholder: "L-V: 9:00-21:00" }
+                                    {
+                                        name: "horario",
+                                        label: "Horario",
+                                        type: "textarea",
+                                        rows: 4,
+                                        placeholder: "Lunes: 09:00 - 01:00\nMartes: 09:00 - 01:00",
+                                    }
                                 ]}
                                 values={{
                                     horario: est.horario || "",

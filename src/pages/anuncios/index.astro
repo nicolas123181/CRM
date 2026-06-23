@@ -46,6 +46,21 @@ if (searchTitle) {
 }
 
 const { data: anuncios, error } = await query;
+const anuncioIds = anuncios?.map((anuncio: any) => anuncio.id) || [];
+const { data: programaciones } = anuncioIds.length > 0
+    ? await supabase
+        .from("anuncio_popup_programacion")
+        .select("anuncio_popup_id, fecha_mostrar, prioridad, activo")
+        .in("anuncio_popup_id", anuncioIds)
+        .order("fecha_mostrar", { ascending: true })
+    : { data: [] };
+const programacionByAnuncio = new Map<number, any[]>();
+
+(programaciones || []).forEach((item: any) => {
+    const current = programacionByAnuncio.get(item.anuncio_popup_id) || [];
+    current.push(item);
+    programacionByAnuncio.set(item.anuncio_popup_id, current);
+});
 ---
 
 <Layout title="Anuncios">
@@ -109,7 +124,11 @@ const { data: anuncios, error } = await query;
                 </div>
             ) : anuncios && anuncios.length > 0 ? (
                 <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    {(anuncios as AnuncioPopupWithDetails[]).map((anuncio) => (
+                    {(anuncios as AnuncioPopupWithDetails[]).map((anuncio) => {
+                        const programacion = programacionByAnuncio.get(anuncio.id) || [];
+                        const proximoDia = programacion.find((item) => item.activo)?.fecha_mostrar;
+
+                        return (
                         <article class="bg-white rounded-xl shadow-sm ring-1 ring-gray-900/5 overflow-hidden">
                             {anuncio.imagen_url ? (
                                 <img src={anuncio.imagen_url} alt={anuncio.titulo} class="w-full h-40 object-cover" />
@@ -125,6 +144,9 @@ const { data: anuncios, error } = await query;
                                 )}
                                 <p class="mt-3 text-sm text-gray-500">
                                     Local: {anuncio.establecimientos?.nombre || "General"}
+                                </p>
+                                <p class="mt-2 text-sm text-gray-500">
+                                    Dias programados: {programacion.length}{proximoDia ? ` - Proximo activo: ${proximoDia}` : ""}
                                 </p>
                                 <div class="mt-4 pt-4 border-t border-gray-100 flex justify-between text-xs text-gray-500">
                                     <span>ID: {anuncio.id}</span>
@@ -143,7 +165,8 @@ const { data: anuncios, error } = await query;
                                 </div>
                             </div>
                         </article>
-                    ))}
+                        );
+                    })}
                 </div>
             ) : (
                 <div class="text-center py-20 bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5">

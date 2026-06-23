@@ -132,6 +132,11 @@ export interface Evento {
     descripcion_fr?: string | null;
     imagen_url?: string | null;
     destacado_nivel: number;
+    establecimiento_id?: number | null;
+}
+
+export interface EventoWithDetails extends Evento {
+    establecimientos: Pick<Establecimiento, 'nombre'> | null;
 }
 
 export interface AnuncioPopup {
@@ -143,8 +148,18 @@ export interface AnuncioPopup {
     created_at: string;
 }
 
+export interface AnuncioPopupProgramacion {
+    id: number;
+    anuncio_popup_id: number;
+    fecha_mostrar: string;
+    prioridad: number;
+    activo: boolean;
+    created_at: string;
+}
+
 export interface AnuncioPopupWithDetails extends AnuncioPopup {
     establecimientos: Pick<Establecimiento, 'nombre'> | null;
+    programacion?: Pick<AnuncioPopupProgramacion, 'fecha_mostrar' | 'prioridad' | 'activo'>[];
 }
 
 export interface Historia {

@@ -24,7 +24,7 @@ if (Astro.request.method === "POST" && isAdmin) {
 // Fetch only NON-cultural events (cultural = 0)
 const { data: eventos, error } = await supabase
     .from("eventos")
-    .select("*")
+    .select("*, establecimientos(nombre)")
     .eq("cultural", 0)
     .order("fecha", { ascending: true });
 
@@ -136,6 +136,11 @@ const formatDate = (dateStr: string) => {
                                                         <span class="flex items-center gap-1">
                                                             🕐 {date.time}
                                                         </span>
+                                                        {evento.establecimientos?.nombre && (
+                                                            <span class="flex items-center gap-1">
+                                                                Local: {evento.establecimientos.nombre}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 
