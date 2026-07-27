@@ -16,6 +16,7 @@ const { data: establecimiento, error } = await supabase
         `
     *,
     categorias (nombre),
+    subcategorias_establecimiento (nombre),
     clients (id, name, email, company)
   `,
     )
@@ -264,7 +265,7 @@ if (monumentIds.length > 0) {
                         >
                             <div class="flex items-start justify-between">
                                 <div>
-                                    <div class="flex items-center gap-2 mb-2">
+                                    <div class="flex flex-wrap items-center gap-2 mb-2">
                                         <span
                                             class={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${categoryColors[est.categorias?.nombre?.toLowerCase()] || "bg-gray-100 text-gray-800 border-gray-200"}`}
                                         >
@@ -277,6 +278,25 @@ if (monumentIds.length > 0) {
                                             est.recomendado === 1 && (
                                                 <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
                                                     ⭐ Recomendado
+                                                </span>
+                                            )
+                                        }
+                                        {
+                                            est.subcategorias_establecimiento
+                                                ?.nombre && (
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                                    {
+                                                        est
+                                                            .subcategorias_establecimiento
+                                                            .nombre
+                                                    }
+                                                </span>
+                                            )
+                                        }
+                                        {
+                                            est.visibilidad_extra === true && (
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 border border-red-200">
+                                                    🚩 Visibilidad extra
                                                 </span>
                                             )
                                         }

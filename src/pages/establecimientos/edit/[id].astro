@@ -13,6 +13,13 @@ const { data: categorias } = await supabase
     .select("*")
     .order("nombre");
 
+const { data: subcategorias } = await supabase
+    .from("subcategorias_establecimiento")
+    .select("id, categoria_id, nombre")
+    .eq("activa", true)
+    .order("orden", { ascending: true })
+    .order("nombre", { ascending: true });
+
 const { data: clients } = await supabase
     .from("clients")
     .select("id, name, company")
@@ -58,11 +65,17 @@ if (Astro.request.method === "POST") {
     const categoria_id = parseInt(
         formData.get("categoria_id")?.toString() || "1",
     );
+    const subcategoria_id_raw = formData.get("subcategoria_id")?.toString();
+    const subcategoria_id = subcategoria_id_raw
+        ? parseInt(subcategoria_id_raw)
+        : null;
     const client_id = formData.get("client_id")?.toString() || null;
     const recomendado = formData.get("recomendado") === "on" ? 1 : 0;
+    const visibilidad_extra = formData.get("visibilidad_extra") === "on";
     const horario = formData.get("horario")?.toString() || null;
     const telefono = formData.get("telefono")?.toString() || null;
     const reservas_url = formData.get("reservas_url")?.toString() || null;
+    const reservas_label = formData.get("reservas_label")?.toString() || null;
     const mensaje_promocional =
         formData.get("mensaje_promocional")?.toString() || null;
 
@@ -97,11 +110,14 @@ if (Astro.request.method === "POST") {
                 longitud,
                 imagen_url,
                 categoria_id,
+                subcategoria_id,
                 client_id: client_id || null,
                 recomendado,
+                visibilidad_extra,
                 horario,
                 telefono: telefono ? parseInt(telefono) : null,
                 reservas_url,
+                reservas_label,
                 mensaje_promocional,
                 nombre_en,
                 nombre_de,
@@ -314,6 +330,23 @@ const est = establecimiento;
                                         </option>
                                     ))
                                 }
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label
+                                for="subcategoria_id"
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                            >
+                                Subcategoría
+                            </label>
+                            <select
+                                name="subcategoria_id"
+                                id="subcategoria_id"
+                                data-selected={est.subcategoria_id || ""}
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
+                            >
+                                <option value="">-- Sin subcategoría --</option>
                             </select>
                         </div>
                         
@@ -714,6 +747,21 @@ const est = establecimiento;
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
                                 />
                             </div>
+                            <div>
+                                <label
+                                    for="reservas_label"
+                                    class="block text-sm font-medium text-gray-700 mb-1"
+                                    >Texto botón reservas</label
+                                >
+                                <input
+                                    type="text"
+                                    name="reservas_label"
+                                    id="reservas_label"
+                                    value={est.reservas_label || ""}
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                    placeholder="Reservar mesa"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -753,6 +801,21 @@ const est = establecimiento;
                                 ⭐ Marcar como recomendado
                             </label>
                         </div>
+                        <div class="mt-4 flex items-center">
+                            <input
+                                type="checkbox"
+                                name="visibilidad_extra"
+                                id="visibilidad_extra"
+                                checked={est.visibilidad_extra === true}
+                                class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                            />
+                            <label
+                                for="visibilidad_extra"
+                                class="ml-2 block text-sm text-gray-700"
+                            >
+                                Visibilidad extra
+                            </label>
+                        </div>
                     </div>
 
                     <!-- Botones -->
@@ -777,8 +840,43 @@ const est = establecimiento;
         </div>
     </main>
 
-    <script is:inline>
+    <script is:inline define:vars={{ subcategoriasOptions: subcategorias || [] }}>
         document.addEventListener("DOMContentLoaded", function () {
+            const categoriaSelect = document.getElementById("categoria_id");
+            const subcategoriaSelect =
+                document.getElementById("subcategoria_id");
+            const subcategorias = subcategoriasOptions || [];
+
+            function updateSubcategorias(keepSelection = false) {
+                const categoriaId = Number(categoriaSelect.value);
+                const selectedSubcategoriaId = keepSelection
+                    ? subcategoriaSelect.dataset.selected
+                    : "";
+                const opciones = subcategorias.filter(
+                    (subcategoria) =>
+                        Number(subcategoria.categoria_id) === categoriaId,
+                );
+
+                subcategoriaSelect.innerHTML =
+                    '<option value="">-- Sin subcategoría --</option>';
+
+                opciones.forEach((subcategoria) => {
+                    const option = document.createElement("option");
+                    option.value = String(subcategoria.id);
+                    option.textContent = subcategoria.nombre;
+                    option.selected =
+                        String(subcategoria.id) === selectedSubcategoriaId;
+                    subcategoriaSelect.appendChild(option);
+                });
+
+                subcategoriaSelect.disabled = opciones.length === 0;
+            }
+
+            categoriaSelect.addEventListener("change", () => {
+                subcategoriaSelect.dataset.selected = "";
+                updateSubcategorias();
+            });
+            updateSubcategorias(true);
             // ================== MAPA DE UBICACIÓN ==================
             const latInput = document.getElementById("latitud");
             const lngInput = document.getElementById("longitud");

@@ -45,6 +45,16 @@ export interface Categoria {
     nombre: string;
 }
 
+export interface SubcategoriaEstablecimiento {
+    id: number;
+    categoria_id: number;
+    nombre: string;
+    slug: string;
+    orden: number;
+    activa: boolean;
+    created: string | null;
+}
+
 export interface Establecimiento {
     id: number;
     nombre: string;
@@ -58,12 +68,16 @@ export interface Establecimiento {
     horario: string | null;
     telefono: number | null;
     reservas_url: string | null;
+    reservas_label: string | null;
     mensaje_promocional: string | null;
     client_id: string | null;
+    subcategoria_id: number | null;
+    visibilidad_extra: boolean;
 }
 
 export interface EstablecimientoWithDetails extends Establecimiento {
     categorias: Pick<Categoria, 'nombre'>;
+    subcategorias_establecimiento: Pick<SubcategoriaEstablecimiento, 'nombre'> | null;
     clients: Pick<Client, 'name' | 'email' | 'company'> | null;
 }
 
